@@ -1,0 +1,28 @@
+use std::env;
+
+use anyhow::{Context, Result};
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub database_url: String,
+    pub solana_rpc_url: String,
+    pub usdc_mint: String,
+    pub port: u16,
+}
+
+impl Config {
+    pub fn from_env() -> Result<Self> {
+        Ok(Self {
+            database_url: env::var("DATABASE_URL")
+                .context("DATABASE_URL must be set")?,
+            solana_rpc_url: env::var("SOLANA_RPC_URL")
+                .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string()),
+            usdc_mint: env::var("USDC_MINT")
+                .unwrap_or_else(|_| "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".to_string()),
+            port: env::var("PORT")
+                .unwrap_or_else(|_| "3000".to_string())
+                .parse()
+                .context("PORT must be a valid number")?,
+        })
+    }
+}
