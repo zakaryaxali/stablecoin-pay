@@ -1,0 +1,23 @@
+# Local Development - PostgreSQL only
+# Run backend and frontend natively for hot-reload
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: stablecoin-pay-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: stablecoin_pay
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

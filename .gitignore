@@ -51,3 +51,7 @@ web-build/
 .vscode/
 *.swp
 *.swo
+
+# Docker
+# Keep .env.docker as template, ignore actual .env
+!.env.docker

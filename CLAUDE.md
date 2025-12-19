@@ -31,6 +31,21 @@ npm run android          # Run on Android emulator
 npm run web              # Run in browser
 ```
 
+### Docker
+```bash
+# Local development (PostgreSQL only)
+docker compose up -d                    # Start PostgreSQL
+docker compose down                     # Stop PostgreSQL
+
+# Production (full stack)
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+**Local dev workflow:**
+1. `docker compose up -d` (start PostgreSQL)
+2. `cd backend && cargo watch -x run` (backend with hot-reload)
+3. `cd frontend && npm start` (frontend with hot-reload)
+
 ## Architecture
 
 ### Backend (`backend/`)

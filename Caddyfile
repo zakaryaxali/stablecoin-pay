@@ -1,0 +1,21 @@
+# Production Caddyfile
+# Replace :80 with your domain for auto-HTTPS (e.g., stablecoin-pay.example.com)
+
+:80 {
+    # Serve frontend static files
+    root * /srv
+    file_server
+
+    # Proxy API requests to backend
+    handle /api/* {
+        reverse_proxy backend:3000
+    }
+
+    # Health check endpoint
+    handle /health {
+        reverse_proxy backend:3000
+    }
+
+    # SPA fallback - serve index.html for client-side routing
+    try_files {path} /index.html
+}

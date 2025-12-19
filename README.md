@@ -16,7 +16,7 @@ Experimenting with Rust-based architecture for stablecoin payments, focusing on:
 - Real-time transaction confirmation tracking
 
 ## Motivation
-Applying traditional payment infrastructure patterns (from fintech experience at Majority) to blockchain rails, exploring how to make crypto payments as seamless as traditional payments.
+Applying traditional payment infrastructure patterns (from fintech experience) to blockchain rails, exploring how to make crypto payments as seamless as traditional payments.
 
 ## Status
 Early stage exploration - using Rust to build production-grade payment architecture patterns.
