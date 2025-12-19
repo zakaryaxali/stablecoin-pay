@@ -72,7 +72,7 @@ pub async fn get_balance(
     crate::services::solana::SolanaClient::validate_address(&address)?;
 
     // Get balance from Solana
-    let balance = state.solana.get_usdc_balance(&address)?;
+    let balance = state.solana.get_usdc_balance(&address).await?;
 
     Ok(Json(BalanceResponse {
         address,
