@@ -15,7 +15,9 @@ impl Config {
         Ok(Self {
             database_url: env::var("DATABASE_URL")
                 .context("DATABASE_URL must be set")?,
-            solana_rpc_url: env::var("SOLANA_RPC_URL")
+            solana_rpc_url: env::var("HELIUS_API_KEY")
+                .map(|key| format!("https://mainnet.helius-rpc.com/?api-key={}", key))
+                .or_else(|_| env::var("SOLANA_RPC_URL"))
                 .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string()),
             usdc_mint: env::var("USDC_MINT")
                 .unwrap_or_else(|_| "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".to_string()),
