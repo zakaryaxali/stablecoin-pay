@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::domain::Transaction;
+use crate::domain::{Transaction, TransactionStatus, TransactionType};
 use crate::error::AppError;
 use crate::repository::{TransactionRepository, WalletRepository};
 use crate::AppState;
@@ -112,6 +112,42 @@ pub async fn get_transactions(
             "Wallet {} not registered. POST /wallets to register it first.",
             address
         )));
+    }
+
+    // Sync recent transactions from Solana before returning
+    let sync_limit = 20; // Fetch last 20 signatures to check
+    match state
+        .solana
+        .sync_wallet_transactions(&address, sync_limit)
+        .await
+    {
+        Ok(parsed_txs) => {
+            // Store each transaction (idempotent - ON CONFLICT DO NOTHING)
+            for tx in parsed_txs {
+                let tx_type = if tx.tx_type == "send" {
+                    TransactionType::Send
+                } else {
+                    TransactionType::Receive
+                };
+
+                let _ = TransactionRepository::create(
+                    &state.db.pool,
+                    &tx.signature,
+                    &tx.wallet_address,
+                    tx_type,
+                    tx.amount,
+                    &tx.token_mint,
+                    &tx.counterparty,
+                    TransactionStatus::Confirmed,
+                    tx.block_time,
+                )
+                .await;
+            }
+        }
+        Err(e) => {
+            // Log sync error but continue to return cached data
+            tracing::warn!("Failed to sync transactions from Solana: {}", e);
+        }
     }
 
     let limit = query.limit.unwrap_or(50).min(100);

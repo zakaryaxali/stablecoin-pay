@@ -12,10 +12,10 @@ export default function HomeScreen() {
     WALLET_ADDRESS
   );
 
-  // Use mock data if no wallet configured or API fails
+  // Use mock data only if balance fetch fails (indicates API issue)
   const displayBalance = balance || mockBalance;
-  const displayTransactions = transactions.length > 0 ? transactions : mockTransactions;
-  const usingMockData = !balance || transactions.length === 0;
+  const displayTransactions = balance ? transactions : mockTransactions;
+  const usingMockData = !balance;
 
   if (isLoading) {
     return (

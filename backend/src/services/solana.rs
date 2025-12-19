@@ -1,3 +1,4 @@
+use chrono::{DateTime, TimeZone, Utc};
 use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -67,6 +68,49 @@ struct TokenInfo {
 struct TokenAmount {
     amount: String,
     decimals: u8,
+}
+
+// Transaction response types for getTransaction
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TransactionResult {
+    block_time: Option<i64>,
+    meta: Option<TransactionMeta>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TransactionMeta {
+    pre_token_balances: Option<Vec<TokenBalanceMeta>>,
+    post_token_balances: Option<Vec<TokenBalanceMeta>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TokenBalanceMeta {
+    owner: Option<String>,
+    mint: Option<String>,
+    ui_token_amount: Option<UiTokenAmount>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UiTokenAmount {
+    ui_amount: Option<f64>,
+    amount: String,
+    decimals: u8,
+}
+
+/// Parsed transaction ready for database storage
+#[derive(Debug, Clone)]
+pub struct ParsedTransaction {
+    pub signature: String,
+    pub wallet_address: String,
+    pub tx_type: String, // "send" or "receive"
+    pub amount: Decimal,
+    pub token_mint: String,
+    pub counterparty: String,
+    pub block_time: DateTime<Utc>,
 }
 
 impl SolanaClient {
@@ -191,5 +235,155 @@ impl SolanaClient {
             .ok_or_else(|| AppError::SolanaRpc("No result in response".to_string()))?;
 
         Ok(result.into_iter().map(|s| s.signature).collect())
+    }
+
+    /// Fetch and parse a single transaction to extract USDC transfer details
+    pub async fn get_transaction_details(
+        &self,
+        signature: &str,
+        wallet_address: &str,
+    ) -> Result<Option<ParsedTransaction>, AppError> {
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTransaction",
+            "params": [
+                signature,
+                {
+                    "encoding": "jsonParsed",
+                    "maxSupportedTransactionVersion": 0
+                }
+            ]
+        });
+
+        let response = self
+            .client
+            .post(&self.rpc_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::SolanaRpc(format!("Request failed: {}", e)))?;
+
+        let rpc_response: RpcResponse<TransactionResult> = response
+            .json()
+            .await
+            .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
+
+        if let Some(error) = rpc_response.error {
+            return Err(AppError::SolanaRpc(error.message));
+        }
+
+        let result = match rpc_response.result {
+            Some(r) => r,
+            None => return Ok(None), // Transaction not found
+        };
+
+        let block_time = result
+            .block_time
+            .map(|ts| Utc.timestamp_opt(ts, 0).single())
+            .flatten()
+            .unwrap_or_else(Utc::now);
+
+        // Get token balance metadata
+        let meta = match result.meta {
+            Some(m) => m,
+            None => return Ok(None),
+        };
+
+        let pre_balances = meta.pre_token_balances.unwrap_or_default();
+        let post_balances = meta.post_token_balances.unwrap_or_default();
+
+        // Find USDC balances for our wallet in pre and post
+        let mut our_pre_balance: Option<u64> = None;
+        let mut our_post_balance: Option<u64> = None;
+        let mut counterparty: Option<String> = None;
+
+        // Check pre-balances for our wallet's USDC
+        for balance in &pre_balances {
+            if balance.owner.as_deref() == Some(wallet_address)
+                && balance.mint.as_deref() == Some(&self.usdc_mint)
+            {
+                if let Some(ref ui_amount) = balance.ui_token_amount {
+                    our_pre_balance = ui_amount.amount.parse().ok();
+                }
+            }
+        }
+
+        // Check post-balances for our wallet's USDC
+        for balance in &post_balances {
+            if balance.owner.as_deref() == Some(wallet_address)
+                && balance.mint.as_deref() == Some(&self.usdc_mint)
+            {
+                if let Some(ref ui_amount) = balance.ui_token_amount {
+                    our_post_balance = ui_amount.amount.parse().ok();
+                }
+            }
+        }
+
+        // Find counterparty (other wallet involved in USDC transfer)
+        for balance in post_balances.iter().chain(pre_balances.iter()) {
+            if balance.mint.as_deref() == Some(&self.usdc_mint)
+                && balance.owner.as_deref() != Some(wallet_address)
+            {
+                if let Some(owner) = &balance.owner {
+                    counterparty = Some(owner.clone());
+                    break;
+                }
+            }
+        }
+
+        // Determine transaction type based on balance change
+        let (tx_type, amount_raw) = match (our_pre_balance, our_post_balance) {
+            (Some(pre), Some(post)) if post > pre => ("receive", post - pre),
+            (Some(pre), Some(post)) if pre > post => ("send", pre - post),
+            (None, Some(post)) if post > 0 => ("receive", post), // New account with balance
+            (Some(pre), None) if pre > 0 => ("send", pre),       // Account closed
+            _ => return Ok(None), // No change or not related to this wallet
+        };
+
+        if amount_raw == 0 {
+            return Ok(None);
+        }
+
+        let amount = Decimal::new(amount_raw as i64, 6); // USDC has 6 decimals
+
+        Ok(Some(ParsedTransaction {
+            signature: signature.to_string(),
+            wallet_address: wallet_address.to_string(),
+            tx_type: tx_type.to_string(),
+            amount,
+            token_mint: self.usdc_mint.clone(),
+            counterparty: counterparty.unwrap_or_else(|| "unknown".to_string()),
+            block_time,
+        }))
+    }
+
+    /// Sync recent transactions for a wallet from the blockchain
+    pub async fn sync_wallet_transactions(
+        &self,
+        wallet_address: &str,
+        limit: usize,
+    ) -> Result<Vec<ParsedTransaction>, AppError> {
+        // Get recent signatures
+        let signatures = self.get_signatures(wallet_address, limit, None).await?;
+
+        let mut transactions = Vec::new();
+
+        // Fetch details for each signature
+        for signature in signatures {
+            match self
+                .get_transaction_details(&signature, wallet_address)
+                .await
+            {
+                Ok(Some(tx)) => transactions.push(tx),
+                Ok(None) => {} // Not a USDC transfer, skip
+                Err(e) => {
+                    // Log error but continue with other transactions
+                    tracing::warn!("Failed to fetch transaction {}: {}", signature, e);
+                }
+            }
+        }
+
+        Ok(transactions)
     }
 }
