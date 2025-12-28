@@ -6,9 +6,9 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::domain::{Transaction, TransactionStatus, TransactionType};
+use crate::domain::{Transaction, TransactionStatus, TransactionType, WebhookEvent};
 use crate::error::AppError;
-use crate::repository::{TransactionRepository, WalletRepository};
+use crate::repository::{TransactionRepository, WalletRepository, WebhookEventRepository};
 use crate::AppState;
 
 // Health check
@@ -161,5 +161,170 @@ pub async fn get_transactions(
     Ok(Json(TransactionsResponse {
         transactions,
         count,
+    }))
+}
+
+// Webhook events query params
+#[derive(Debug, Deserialize)]
+pub struct WebhookEventsQuery {
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+// Webhook events response
+#[derive(Debug, Serialize)]
+pub struct WebhookEventsResponse {
+    pub events: Vec<WebhookEvent>,
+    pub count: usize,
+}
+
+pub async fn get_webhook_events(
+    State(state): State<Arc<AppState>>,
+    Path(address): Path<String>,
+    Query(query): Query<WebhookEventsQuery>,
+) -> Result<Json<WebhookEventsResponse>, AppError> {
+    // Validate address
+    crate::services::solana::SolanaClient::validate_address(&address)?;
+
+    // Check if wallet exists
+    let wallet = WalletRepository::find_by_address(&state.db.pool, &address).await?;
+    if wallet.is_none() {
+        return Err(AppError::NotFound(format!("Wallet {} not found", address)));
+    }
+
+    let limit = query.limit.unwrap_or(50).min(100);
+    let offset = query.offset.unwrap_or(0);
+
+    let events =
+        WebhookEventRepository::find_by_wallet(&state.db.pool, &address, limit, offset).await?;
+    let count = events.len();
+
+    Ok(Json(WebhookEventsResponse { events, count }))
+}
+
+// Test webhook response
+#[derive(Debug, Serialize)]
+pub struct TestWebhookResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+pub async fn test_webhook(
+    State(state): State<Arc<AppState>>,
+    Path(address): Path<String>,
+) -> Result<Json<TestWebhookResponse>, AppError> {
+    // Validate address
+    crate::services::solana::SolanaClient::validate_address(&address)?;
+
+    // Get wallet
+    let wallet = WalletRepository::find_by_address(&state.db.pool, &address)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Wallet {} not found", address)))?;
+
+    // Check if webhook URL is configured
+    if wallet.webhook_url.is_none() {
+        return Err(AppError::BadRequest(
+            "No webhook URL configured for this wallet".into(),
+        ));
+    }
+
+    // Send test webhook
+    match state.webhook.send_test_webhook(&wallet).await {
+        Ok(()) => Ok(Json(TestWebhookResponse {
+            success: true,
+            message: "Test webhook delivered successfully".into(),
+        })),
+        Err(e) => Ok(Json(TestWebhookResponse {
+            success: false,
+            message: format!("Webhook delivery failed: {}", e),
+        })),
+    }
+}
+
+// Detailed health response
+#[derive(Debug, Serialize)]
+pub struct DetailedHealthResponse {
+    pub status: String,
+    pub database: HealthStatus,
+    pub solana_rpc: HealthStatus,
+    pub background_sync: BackgroundSyncStatus,
+    pub webhooks: WebhookHealthStats,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HealthStatus {
+    pub status: String,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BackgroundSyncStatus {
+    pub running: bool,
+    pub last_sync: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WebhookHealthStats {
+    pub pending: i64,
+    pub delivered: i64,
+    pub failed: i64,
+}
+
+pub async fn detailed_health(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<DetailedHealthResponse>, AppError> {
+    // Check database
+    let db_status = match sqlx::query("SELECT 1")
+        .execute(&state.db.pool)
+        .await
+    {
+        Ok(_) => HealthStatus {
+            status: "healthy".into(),
+            message: None,
+        },
+        Err(e) => HealthStatus {
+            status: "unhealthy".into(),
+            message: Some(e.to_string()),
+        },
+    };
+
+    // Check Solana RPC by fetching a known account
+    let solana_status = match state
+        .solana
+        .get_usdc_balance("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v") // USDC mint address
+        .await
+    {
+        Ok(_) => HealthStatus {
+            status: "healthy".into(),
+            message: None,
+        },
+        Err(e) => HealthStatus {
+            status: "unhealthy".into(),
+            message: Some(e.to_string()),
+        },
+    };
+
+    // Get webhook stats
+    let webhook_stats = state.webhook.get_stats().await?;
+
+    let overall_status = if db_status.status == "healthy" && solana_status.status == "healthy" {
+        "healthy"
+    } else {
+        "degraded"
+    };
+
+    Ok(Json(DetailedHealthResponse {
+        status: overall_status.into(),
+        database: db_status,
+        solana_rpc: solana_status,
+        background_sync: BackgroundSyncStatus {
+            running: true, // Background sync is always running if server is up
+            last_sync: None, // Could track this in the future
+        },
+        webhooks: WebhookHealthStats {
+            pending: webhook_stats.pending,
+            delivered: webhook_stats.delivered,
+            failed: webhook_stats.failed,
+        },
     }))
 }

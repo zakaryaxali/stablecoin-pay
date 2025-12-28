@@ -22,6 +22,15 @@ pub enum AppError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+
+    #[error("Webhook delivery failed: {0}")]
+    WebhookDeliveryFailed(String),
+
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 impl IntoResponse for AppError {
@@ -40,6 +49,15 @@ impl IntoResponse for AppError {
             AppError::Internal(msg) => {
                 tracing::error!("Internal error: {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, msg.clone())
+            }
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            AppError::WebhookDeliveryFailed(msg) => {
+                tracing::error!("Webhook delivery failed: {}", msg);
+                (StatusCode::BAD_GATEWAY, msg.clone())
+            }
+            AppError::Json(e) => {
+                tracing::error!("JSON error: {:?}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "JSON serialization error".to_string())
             }
         };
 

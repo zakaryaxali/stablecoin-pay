@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use tokio::net::TcpListener;
+use tokio::signal;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -17,10 +18,14 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::config::Config;
 use crate::db::Database;
 use crate::services::solana::SolanaClient;
+use crate::services::sync::SyncService;
+use crate::services::webhook::WebhookService;
 
 pub struct AppState {
     pub db: Database,
-    pub solana: SolanaClient,
+    pub solana: Arc<SolanaClient>,
+    pub webhook: Arc<WebhookService>,
+    pub sync: Arc<SyncService>,
     pub config: Config,
 }
 
@@ -46,10 +51,32 @@ async fn main() -> anyhow::Result<()> {
     db.run_migrations().await?;
 
     // Initialize Solana client
-    let solana = SolanaClient::new(&config.solana_rpc_url, &config.usdc_mint);
+    let solana = Arc::new(SolanaClient::new(&config.solana_rpc_url, &config.usdc_mint));
+
+    // Initialize webhook service
+    let webhook = Arc::new(WebhookService::new(
+        db.pool.clone(),
+        config.webhook_secret.clone(),
+    ));
+
+    // Initialize sync service
+    let sync = Arc::new(SyncService::new(
+        db.pool.clone(),
+        solana.clone(),
+        webhook.clone(),
+    ));
+
+    // Start background sync
+    let sync_handle = sync.clone().start_background_sync();
 
     // Create app state
-    let state = Arc::new(AppState { db, solana, config });
+    let state = Arc::new(AppState {
+        db,
+        solana,
+        webhook,
+        sync: sync.clone(),
+        config,
+    });
 
     // Build router
     let app = Router::new()
@@ -62,12 +89,45 @@ async fn main() -> anyhow::Result<()> {
                 .allow_headers(Any),
         );
 
-    // Start server
+    // Start server with graceful shutdown
     let addr = format!("0.0.0.0:{}", state.config.port);
     let listener = TcpListener::bind(&addr).await?;
     tracing::info!("Listening on {}", addr);
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal(sync))
+        .await?;
+
+    // Wait for background sync to finish
+    sync_handle.abort();
+    tracing::info!("Server shutdown complete");
 
     Ok(())
+}
+
+async fn shutdown_signal(sync: Arc<SyncService>) {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("Failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    tracing::info!("Shutdown signal received, stopping background services...");
+    sync.shutdown();
 }

@@ -8,6 +8,7 @@ pub struct Config {
     pub solana_rpc_url: String,
     pub usdc_mint: String,
     pub port: u16,
+    pub webhook_secret: String,
 }
 
 impl Config {
@@ -25,6 +26,8 @@ impl Config {
                 .unwrap_or_else(|_| "3000".to_string())
                 .parse()
                 .context("PORT must be a valid number")?,
+            webhook_secret: env::var("WEBHOOK_SECRET")
+                .unwrap_or_else(|_| "default-webhook-secret-change-in-production".to_string()),
         })
     }
 }

@@ -11,7 +11,7 @@ use crate::error::AppError;
 pub struct SolanaClient {
     client: Client,
     rpc_url: String,
-    usdc_mint: String,
+    pub usdc_mint: String,
 }
 
 #[derive(Debug, Clone)]
