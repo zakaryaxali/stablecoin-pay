@@ -8,10 +8,10 @@ import {
   Pressable,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { DepositForm } from "@/components/DepositForm";
 import { ConnectWallet } from "@/components/ConnectWallet";
-import { getKaminoService } from "@/services/protocols/kamino";
+import { getUsdcBalance } from "@/services/balance";
 import { getPlatformName, formatApy, getApyRates, ApyRate } from "@/services/apy";
 
 export default function DepositScreen() {
@@ -73,7 +73,6 @@ function DepositScreenWeb({
   error: string | null;
 }) {
   const router = useRouter();
-  const { connection } = useConnection();
   const { publicKey, connected } = useWallet();
 
   const [balance, setBalance] = useState(0);
@@ -82,24 +81,24 @@ function DepositScreenWeb({
   const [error, setError] = useState<string | null>(initialError);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Fetch USDC balance when connected
+  // Fetch USDC balance from backend when connected
   useEffect(() => {
     async function fetchBalance() {
       if (!connected || !publicKey) return;
 
       setIsLoadingBalance(true);
       try {
-        const kaminoService = getKaminoService(connection);
-        const bal = await kaminoService.getUsdcBalance(publicKey);
+        const bal = await getUsdcBalance(publicKey.toBase58());
         setBalance(bal);
       } catch (err) {
         console.error("Failed to fetch balance:", err);
+        setError("Failed to fetch balance. Make sure the backend is running.");
       } finally {
         setIsLoadingBalance(false);
       }
     }
     fetchBalance();
-  }, [connected, publicKey, connection]);
+  }, [connected, publicKey]);
 
   const handleDeposit = async (amount: number) => {
     if (!publicKey || !connected) {
