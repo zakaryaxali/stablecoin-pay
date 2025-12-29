@@ -6,11 +6,13 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { APYTable } from "@/components/APYTable";
 import { ConnectWallet } from "@/components/ConnectWallet";
 import { ApyRate, getApyRates } from "@/services/apy";
 
 export default function YieldsScreen() {
+  const router = useRouter();
   const [rates, setRates] = useState<ApyRate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -44,8 +46,7 @@ export default function YieldsScreen() {
   const handleRefresh = () => fetchRates(true);
 
   const handleDeposit = (platform: string) => {
-    // TODO: Navigate to deposit screen (Phase 4)
-    console.log("Deposit to:", platform);
+    router.push(`/deposit/${platform}`);
   };
 
   // Get best platform (highest APY)

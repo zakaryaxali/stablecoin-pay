@@ -16,6 +16,7 @@
     "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/wallet-adapter-react-ui": "^0.9.39",
     "@solana/web3.js": "^1.98.4",
+    "decimal.js": "^10.6.0",
     "expo": "~54.0.30",
     "expo-constants": "~18.0.12",
     "expo-font": "~14.0.10",
