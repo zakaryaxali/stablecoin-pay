@@ -32,6 +32,7 @@ services:
       USDC_MINT: ${USDC_MINT:-EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v}
       PORT: 3000
       RUST_LOG: info
+      ENVIRONMENT: production
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
