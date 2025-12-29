@@ -31,6 +31,9 @@ pub enum AppError {
 
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+
+    #[error("External API error: {0}")]
+    External(String),
 }
 
 impl IntoResponse for AppError {
@@ -58,6 +61,10 @@ impl IntoResponse for AppError {
             AppError::Json(e) => {
                 tracing::error!("JSON error: {:?}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, "JSON serialization error".to_string())
+            }
+            AppError::External(msg) => {
+                tracing::error!("External API error: {}", msg);
+                (StatusCode::BAD_GATEWAY, msg.clone())
             }
         };
 

@@ -17,6 +17,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::config::Config;
 use crate::db::Database;
+use crate::services::apy::ApyService;
 use crate::services::solana::SolanaClient;
 use crate::services::sync::SyncService;
 use crate::services::webhook::WebhookService;
@@ -26,6 +27,7 @@ pub struct AppState {
     pub solana: Arc<SolanaClient>,
     pub webhook: Arc<WebhookService>,
     pub sync: Arc<SyncService>,
+    pub apy: Arc<ApyService>,
     pub config: Config,
 }
 
@@ -66,8 +68,14 @@ async fn main() -> anyhow::Result<()> {
         webhook.clone(),
     ));
 
+    // Initialize APY service
+    let apy = Arc::new(ApyService::new(db.pool.clone()));
+
     // Start background sync
     let sync_handle = sync.clone().start_background_sync();
+
+    // Start APY background fetch
+    let apy_handle = apy.clone().start_background_fetch();
 
     // Create app state
     let state = Arc::new(AppState {
@@ -75,6 +83,7 @@ async fn main() -> anyhow::Result<()> {
         solana,
         webhook,
         sync: sync.clone(),
+        apy: apy.clone(),
         config,
     });
 
@@ -95,17 +104,18 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Listening on {}", addr);
 
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal(sync))
+        .with_graceful_shutdown(shutdown_signal(sync, apy))
         .await?;
 
-    // Wait for background sync to finish
+    // Wait for background tasks to finish
     sync_handle.abort();
+    apy_handle.abort();
     tracing::info!("Server shutdown complete");
 
     Ok(())
 }
 
-async fn shutdown_signal(sync: Arc<SyncService>) {
+async fn shutdown_signal(sync: Arc<SyncService>, apy: Arc<ApyService>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -130,4 +140,5 @@ async fn shutdown_signal(sync: Arc<SyncService>) {
 
     tracing::info!("Shutdown signal received, stopping background services...");
     sync.shutdown();
+    apy.shutdown();
 }

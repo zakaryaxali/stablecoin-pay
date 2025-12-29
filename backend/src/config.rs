@@ -2,6 +2,12 @@ use std::env;
 
 use anyhow::{Context, Result};
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Environment {
+    Development,
+    Production,
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub database_url: String,
@@ -9,6 +15,7 @@ pub struct Config {
     pub usdc_mint: String,
     pub port: u16,
     pub webhook_secret: String,
+    pub environment: Environment,
 }
 
 impl Config {
@@ -28,6 +35,18 @@ impl Config {
                 .context("PORT must be a valid number")?,
             webhook_secret: env::var("WEBHOOK_SECRET")
                 .unwrap_or_else(|_| "default-webhook-secret-change-in-production".to_string()),
+            environment: match env::var("ENVIRONMENT")
+                .unwrap_or_else(|_| "development".to_string())
+                .to_lowercase()
+                .as_str()
+            {
+                "production" | "prod" => Environment::Production,
+                _ => Environment::Development,
+            },
         })
+    }
+
+    pub fn is_production(&self) -> bool {
+        self.environment == Environment::Production
     }
 }
