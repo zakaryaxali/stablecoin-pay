@@ -1,21 +1,5 @@
-import { Platform } from "react-native";
 import { Balance, Transaction, TransactionType, TransactionStatus } from "@/types";
-
-// API base URL - localhost for iOS simulator, 10.0.2.2 for Android emulator
-const getBaseUrl = () => {
-  if (__DEV__) {
-    // Android emulator uses 10.0.2.2 to reach host machine
-    // iOS simulator and web use localhost
-    if (Platform.OS === "android") {
-      return "http://10.0.2.2:3000";
-    }
-    return "http://localhost:3000";
-  }
-  // Production URL - update this when you deploy
-  return "https://api.your-domain.com";
-};
-
-const API_BASE = getBaseUrl();
+import { API_BASE } from "./config";
 
 // API Response Types (match backend)
 interface ApiBalanceResponse {
