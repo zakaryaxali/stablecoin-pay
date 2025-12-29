@@ -40,6 +40,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="yields"
+        options={{
+          title: "Yields",
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="line-chart" color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
