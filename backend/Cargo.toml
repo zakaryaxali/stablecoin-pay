@@ -13,9 +13,11 @@ tower-http = { version = "0.5", features = ["cors", "trace"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono", "rust_decimal", "uuid"] }
 
 # Solana
-solana-client = "2"
 solana-sdk = "2"
-solana-account-decoder = "2"
+
+# Serialization
+bincode = "1"
+base64 = "0.22"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

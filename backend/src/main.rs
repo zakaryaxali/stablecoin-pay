@@ -18,6 +18,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::config::Config;
 use crate::db::Database;
 use crate::services::apy::ApyService;
+use crate::services::deposit::DepositService;
 use crate::services::solana::SolanaClient;
 use crate::services::sync::SyncService;
 use crate::services::webhook::WebhookService;
@@ -28,6 +29,7 @@ pub struct AppState {
     pub webhook: Arc<WebhookService>,
     pub sync: Arc<SyncService>,
     pub apy: Arc<ApyService>,
+    pub deposit: Arc<DepositService>,
     pub config: Config,
 }
 
@@ -71,6 +73,9 @@ async fn main() -> anyhow::Result<()> {
     // Initialize APY service
     let apy = Arc::new(ApyService::new(db.pool.clone()));
 
+    // Initialize deposit service
+    let deposit = Arc::new(DepositService::new(&config.solana_rpc_url));
+
     // Start background sync
     let sync_handle = sync.clone().start_background_sync();
 
@@ -84,6 +89,7 @@ async fn main() -> anyhow::Result<()> {
         webhook,
         sync: sync.clone(),
         apy: apy.clone(),
+        deposit,
         config,
     });
 

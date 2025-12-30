@@ -21,7 +21,9 @@ pub fn routes(state: Arc<AppState>) -> Router {
         // APY routes
         .route("/apy/rates", get(handlers::get_apy_rates))
         .route("/apy/rates/best", get(handlers::get_best_apy))
-        .route("/apy/history", get(handlers::get_apy_history));
+        .route("/apy/history", get(handlers::get_apy_history))
+        // Deposit routes
+        .route("/deposits/build", post(handlers::build_deposit_transaction));
 
     // Debug endpoints (dev only)
     if !state.config.is_production() {

@@ -129,6 +129,37 @@ impl SolanaClient {
             .map_err(|_| AppError::InvalidAddress(format!("Invalid Solana address: {}", address)))
     }
 
+    /// Get current slot from Solana RPC (used for health checks)
+    pub async fn get_slot(&self) -> Result<u64, AppError> {
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getSlot",
+            "params": []
+        });
+
+        let response = self
+            .client
+            .post(&self.rpc_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::SolanaRpc(format!("Request failed: {}", e)))?;
+
+        let rpc_response: RpcResponse<u64> = response
+            .json()
+            .await
+            .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
+
+        if let Some(error) = rpc_response.error {
+            return Err(AppError::SolanaRpc(error.message));
+        }
+
+        rpc_response
+            .result
+            .ok_or_else(|| AppError::SolanaRpc("No slot in response".to_string()))
+    }
+
     pub async fn get_usdc_balance(&self, wallet_address: &str) -> Result<TokenBalance, AppError> {
         // Validate address
         Self::validate_address(wallet_address)?;
