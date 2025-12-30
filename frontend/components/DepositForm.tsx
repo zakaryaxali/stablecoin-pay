@@ -6,6 +6,12 @@ import {
   Pressable,
   ActivityIndicator,
 } from "react-native";
+import {
+  formatAmountInput,
+  validateDepositAmount,
+  isValidDepositAmount,
+  formatBalance,
+} from "@/utils/depositValidation";
 
 interface DepositFormProps {
   platform: string;
@@ -30,13 +36,11 @@ export function DepositForm({
   const [error, setError] = useState<string | null>(null);
 
   const handleAmountChange = (text: string) => {
-    // Only allow numbers and one decimal point
-    const cleaned = text.replace(/[^0-9.]/g, "");
-    const parts = cleaned.split(".");
-    if (parts.length > 2) return;
-    if (parts[1]?.length > 6) return; // USDC has 6 decimals
-    setAmount(cleaned);
-    setError(null);
+    const formatted = formatAmountInput(text);
+    if (formatted !== null) {
+      setAmount(formatted);
+      setError(null);
+    }
   };
 
   const handleMaxPress = () => {
@@ -45,27 +49,20 @@ export function DepositForm({
   };
 
   const handleDeposit = async () => {
-    const numAmount = parseFloat(amount);
-
-    if (isNaN(numAmount) || numAmount <= 0) {
-      setError("Please enter a valid amount");
-      return;
-    }
-
-    if (numAmount > balance) {
-      setError("Insufficient balance");
+    const validationError = validateDepositAmount(amount, balance);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     try {
-      await onDeposit(numAmount);
+      await onDeposit(parseFloat(amount));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Deposit failed");
     }
   };
 
-  const numAmount = parseFloat(amount) || 0;
-  const isValidAmount = numAmount > 0 && numAmount <= balance;
+  const isValidAmount = isValidDepositAmount(amount, balance);
 
   return (
     <View className="bg-white rounded-2xl p-6 mx-4">
@@ -83,11 +80,7 @@ export function DepositForm({
       <View className="bg-gray-50 rounded-xl p-4 mb-4">
         <Text className="text-gray-500 text-xs mb-1">Available Balance</Text>
         <Text className="text-gray-900 text-lg font-semibold">
-          {balance.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 6,
-          })}{" "}
-          USDC
+          {formatBalance(balance)} USDC
         </Text>
       </View>
 

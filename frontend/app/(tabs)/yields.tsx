@@ -1,4 +1,3 @@
-import { useState, useEffect, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -9,48 +8,15 @@ import {
 import { useRouter } from "expo-router";
 import { APYTable } from "@/components/APYTable";
 import { ConnectWallet } from "@/components/ConnectWallet";
-import { ApyRate, getApyRates } from "@/services/apy";
+import { useApyRates } from "@/hooks/useApyRates";
 
 export default function YieldsScreen() {
   const router = useRouter();
-  const [rates, setRates] = useState<ApyRate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchRates = useCallback(async (showRefresh = false) => {
-    if (showRefresh) {
-      setIsRefreshing(true);
-    }
-    setError(null);
-
-    try {
-      const data = await getApyRates();
-      // Sort by APY descending
-      const sorted = data.sort(
-        (a, b) => parseFloat(b.apy_total) - parseFloat(a.apy_total)
-      );
-      setRates(sorted);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch rates");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRates();
-  }, [fetchRates]);
-
-  const handleRefresh = () => fetchRates(true);
+  const { rates, bestPlatform, isLoading, isRefreshing, error, refresh } = useApyRates();
 
   const handleDeposit = (platform: string) => {
     router.push(`/deposit/${platform}`);
   };
-
-  // Get best platform (highest APY)
-  const bestPlatform = rates.length > 0 ? rates[0].platform : undefined;
 
   if (isLoading) {
     return (
@@ -68,7 +34,7 @@ export default function YieldsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={handleRefresh}
+            onRefresh={refresh}
             tintColor="#4f46e5"
           />
         }

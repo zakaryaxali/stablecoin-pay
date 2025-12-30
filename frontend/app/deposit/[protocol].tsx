@@ -11,8 +11,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { DepositForm } from "@/components/DepositForm";
 import { ConnectWallet } from "@/components/ConnectWallet";
-import { getUsdcBalance } from "@/services/balance";
 import { getPlatformName, formatApy, getApyRates, ApyRate } from "@/services/apy";
+import { useDeposit } from "@/hooks/useDeposit";
+import { useUsdcBalance } from "@/hooks/useUsdcBalance";
 
 export default function DepositScreen() {
   const { protocol } = useLocalSearchParams<{ protocol: string }>();
@@ -75,50 +76,19 @@ function DepositScreenWeb({
   const router = useRouter();
   const { publicKey, connected } = useWallet();
 
-  const [balance, setBalance] = useState(0);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-  const [isDepositing, setIsDepositing] = useState(false);
-  const [error, setError] = useState<string | null>(initialError);
-  const [success, setSuccess] = useState<string | null>(null);
+  // Use extracted hooks for business logic
+  const walletAddress = connected && publicKey ? publicKey.toBase58() : null;
+  const { balance, isLoading: isLoadingBalance, error: balanceError, refetch: refetchBalance } = useUsdcBalance(walletAddress);
+  const { execute: executeDeposit, isDepositing, error: depositError, success } = useDeposit(protocol);
 
-  // Fetch USDC balance from backend when connected
-  useEffect(() => {
-    async function fetchBalance() {
-      if (!connected || !publicKey) return;
-
-      setIsLoadingBalance(true);
-      try {
-        const bal = await getUsdcBalance(publicKey.toBase58());
-        setBalance(bal);
-      } catch (err) {
-        console.error("Failed to fetch balance:", err);
-        setError("Failed to fetch balance. Make sure the backend is running.");
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    }
-    fetchBalance();
-  }, [connected, publicKey]);
+  // Combine errors from different sources
+  const error = initialError || balanceError || depositError;
 
   const handleDeposit = async (amount: number) => {
-    if (!publicKey || !connected) {
-      setError("Please connect your wallet first");
-      return;
-    }
-
-    setIsDepositing(true);
-    setError(null);
-
-    // Simulate deposit for demo (actual implementation requires backend)
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setSuccess(
-        `Demo: Would deposit ${amount} USDC to ${getPlatformName(protocol)}. Full integration requires backend transaction building.`
-      );
-    } catch (err) {
-      setError("Deposit failed");
-    } finally {
-      setIsDepositing(false);
+    await executeDeposit(amount);
+    // Refresh balance after deposit attempt
+    if (walletAddress) {
+      refetchBalance();
     }
   };
 
