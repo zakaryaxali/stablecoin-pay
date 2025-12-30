@@ -32,17 +32,6 @@ impl WebhookEventRepository {
         Ok(event)
     }
 
-    pub async fn find_by_id(pool: &PgPool, id: Uuid) -> Result<Option<WebhookEvent>, AppError> {
-        let event = sqlx::query_as::<_, WebhookEvent>(
-            "SELECT * FROM webhook_events WHERE id = $1",
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await?;
-
-        Ok(event)
-    }
-
     pub async fn find_by_wallet(
         pool: &PgPool,
         wallet_address: &str,

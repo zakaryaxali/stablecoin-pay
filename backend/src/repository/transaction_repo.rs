@@ -41,17 +41,6 @@ impl TransactionRepository {
         Ok(tx)
     }
 
-    pub async fn find_by_signature(pool: &PgPool, signature: &str) -> Result<Option<Transaction>, AppError> {
-        let tx = sqlx::query_as::<_, Transaction>(
-            "SELECT * FROM transactions WHERE signature = $1",
-        )
-        .bind(signature)
-        .fetch_optional(pool)
-        .await?;
-
-        Ok(tx)
-    }
-
     pub async fn find_by_wallet(
         pool: &PgPool,
         wallet_address: &str,
@@ -84,21 +73,5 @@ impl TransactionRepository {
         .await?;
 
         Ok(exists.0)
-    }
-
-    pub async fn get_latest_signature(pool: &PgPool, wallet_address: &str) -> Result<Option<String>, AppError> {
-        let result: Option<(String,)> = sqlx::query_as(
-            r#"
-            SELECT signature FROM transactions
-            WHERE wallet_address = $1
-            ORDER BY block_time DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(wallet_address)
-        .fetch_optional(pool)
-        .await?;
-
-        Ok(result.map(|r| r.0))
     }
 }

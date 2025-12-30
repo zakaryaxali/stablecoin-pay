@@ -42,25 +42,6 @@ impl ApyRateRepository {
         Ok(rate)
     }
 
-    pub async fn get_latest_by_platform(
-        pool: &PgPool,
-        platform: &str,
-    ) -> Result<Option<ApyRate>, AppError> {
-        let rate = sqlx::query_as::<_, ApyRate>(
-            r#"
-            SELECT * FROM apy_rates
-            WHERE platform = $1
-            ORDER BY fetched_at DESC
-            LIMIT 1
-            "#,
-        )
-        .bind(platform)
-        .fetch_optional(pool)
-        .await?;
-
-        Ok(rate)
-    }
-
     pub async fn get_latest_rates(
         pool: &PgPool,
         chain: &str,
