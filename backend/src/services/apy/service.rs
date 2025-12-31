@@ -78,6 +78,7 @@ impl ApyService {
                 rate.apy_reward,
                 rate.tvl_usd,
                 Some(&rate.pool_id),
+                rate.pool_meta.as_deref(),
                 "defillama",
             )
             .await

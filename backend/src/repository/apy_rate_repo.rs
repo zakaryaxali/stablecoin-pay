@@ -18,12 +18,13 @@ impl ApyRateRepository {
         apy_reward: Option<Decimal>,
         tvl_usd: Option<Decimal>,
         pool_id: Option<&str>,
+        pool_meta: Option<&str>,
         source: &str,
     ) -> Result<ApyRate, AppError> {
         let rate = sqlx::query_as::<_, ApyRate>(
             r#"
-            INSERT INTO apy_rates (platform, chain, token, apy_total, apy_base, apy_reward, tvl_usd, pool_id, source)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO apy_rates (platform, chain, token, apy_total, apy_base, apy_reward, tvl_usd, pool_id, pool_meta, source)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
             "#,
         )
@@ -35,6 +36,7 @@ impl ApyRateRepository {
         .bind(apy_reward)
         .bind(tvl_usd)
         .bind(pool_id)
+        .bind(pool_meta)
         .bind(source)
         .fetch_one(pool)
         .await?;
@@ -49,10 +51,10 @@ impl ApyRateRepository {
     ) -> Result<Vec<ApyRate>, AppError> {
         let rates = sqlx::query_as::<_, ApyRate>(
             r#"
-            SELECT DISTINCT ON (platform) *
+            SELECT DISTINCT ON (pool_id) *
             FROM apy_rates
             WHERE chain = $1 AND token = $2
-            ORDER BY platform, fetched_at DESC
+            ORDER BY pool_id, fetched_at DESC
             "#,
         )
         .bind(chain)
@@ -70,10 +72,10 @@ impl ApyRateRepository {
     ) -> Result<Option<ApyRate>, AppError> {
         let rate = sqlx::query_as::<_, ApyRate>(
             r#"
-            SELECT DISTINCT ON (platform) *
+            SELECT DISTINCT ON (pool_id) *
             FROM apy_rates
             WHERE chain = $1 AND token = $2
-            ORDER BY platform, fetched_at DESC
+            ORDER BY pool_id, fetched_at DESC
             "#,
         )
         .bind(chain)

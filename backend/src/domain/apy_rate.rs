@@ -14,6 +14,7 @@ pub struct ApyRate {
     pub apy_reward: Option<Decimal>,
     pub tvl_usd: Option<Decimal>,
     pub pool_id: Option<String>,
+    pub pool_meta: Option<String>,
     pub source: String,
     pub fetched_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
@@ -28,6 +29,8 @@ pub struct ApyRateResponse {
     pub apy_base: Option<Decimal>,
     pub apy_reward: Option<Decimal>,
     pub tvl_usd: Option<Decimal>,
+    pub pool_id: Option<String>,
+    pub pool_meta: Option<String>,
     pub fetched_at: DateTime<Utc>,
 }
 
@@ -41,6 +44,8 @@ impl From<ApyRate> for ApyRateResponse {
             apy_base: rate.apy_base,
             apy_reward: rate.apy_reward,
             tvl_usd: rate.tvl_usd,
+            pool_id: rate.pool_id,
+            pool_meta: rate.pool_meta,
             fetched_at: rate.fetched_at,
         }
     }

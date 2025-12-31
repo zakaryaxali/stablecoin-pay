@@ -24,6 +24,7 @@ pub struct DefiLlamaPool {
     pub apy_base: Option<f64>,
     pub apy_reward: Option<f64>,
     pub pool: String,
+    pub pool_meta: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -36,6 +37,7 @@ pub struct PoolRate {
     pub apy_reward: Option<Decimal>,
     pub tvl_usd: Option<Decimal>,
     pub pool_id: String,
+    pub pool_meta: Option<String>,
 }
 
 pub struct DefiLlamaClient {
@@ -98,6 +100,7 @@ impl DefiLlamaClient {
             apy_reward: pool.apy_reward.map(|v| Decimal::from_str(&format!("{:.4}", v)).unwrap_or_default()),
             tvl_usd: pool.tvl_usd.map(|v| Decimal::from_str(&format!("{:.2}", v)).unwrap_or_default()),
             pool_id: pool.pool,
+            pool_meta: pool.pool_meta,
         })
     }
 }
