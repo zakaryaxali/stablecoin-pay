@@ -3,7 +3,7 @@ import { ApyRate, getApyRates } from "@/services/apy";
 
 interface UseApyRatesReturn {
   rates: ApyRate[];
-  bestPlatform: string | undefined;
+  bestPoolId: string | undefined;
   isLoading: boolean;
   isRefreshing: boolean;
   error: string | null;
@@ -45,12 +45,12 @@ export function useApyRates(): UseApyRatesReturn {
     await fetchRates(true);
   }, [fetchRates]);
 
-  // Best platform is the one with highest APY (first after sorting)
-  const bestPlatform = rates.length > 0 ? rates[0].platform : undefined;
+  // Best pool is the one with highest APY (first after sorting)
+  const bestPoolId = rates.length > 0 ? (rates[0].pool_id ?? rates[0].platform) : undefined;
 
   return {
     rates,
-    bestPlatform,
+    bestPoolId,
     isLoading,
     isRefreshing,
     error,

@@ -9,6 +9,8 @@ export interface ApyRate {
   apy_base: string | null;
   apy_reward: string | null;
   tvl_usd: string | null;
+  pool_id: string | null;
+  pool_meta: string | null;
   fetched_at: string;
 }
 
@@ -81,4 +83,11 @@ export function getPlatformName(platform: string): string {
     marginfi: "MarginFi",
   };
   return names[platform] || platform;
+}
+
+// Get pool display name using pool_meta from DeFiLlama
+export function getPoolName(poolMeta: string | null, platform: string): string {
+  const platformName = getPlatformName(platform);
+  if (!poolMeta) return platformName;
+  return `${platformName} - ${poolMeta}`;
 }

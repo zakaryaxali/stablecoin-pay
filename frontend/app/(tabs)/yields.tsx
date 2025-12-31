@@ -12,7 +12,7 @@ import { useApyRates } from "@/hooks/useApyRates";
 
 export default function YieldsScreen() {
   const router = useRouter();
-  const { rates, bestPlatform, isLoading, isRefreshing, error, refresh } = useApyRates();
+  const { rates, bestPoolId, isLoading, isRefreshing, error, refresh } = useApyRates();
 
   const handleDeposit = (platform: string) => {
     router.push(`/deposit/${platform}`);
@@ -65,7 +65,7 @@ export default function YieldsScreen() {
         {/* APY Table */}
         <APYTable
           rates={rates}
-          bestPlatform={bestPlatform}
+          bestPoolId={bestPoolId}
           onDeposit={handleDeposit}
         />
 
