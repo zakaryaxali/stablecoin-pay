@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
-import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
 import { buildDepositTransaction } from "@/services/deposit";
+import { sendTransaction, confirmTransaction } from "@/services/rpc";
 import { getPlatformName } from "@/services/apy";
 
 interface UseDepositReturn {
@@ -15,7 +16,6 @@ interface UseDepositReturn {
 
 export function useDeposit(protocol: string): UseDepositReturn {
   const { publicKey, connected, signTransaction } = useWallet();
-  const { connection } = useConnection();
 
   const [isDepositing, setIsDepositing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,10 +75,13 @@ export function useDeposit(protocol: string): UseDepositReturn {
         throw new Error("Wallet failed to sign: " + (err.message || "Unknown error"));
       }
 
-      // 4. Send the signed transaction to Solana
+      // 4. Send the signed transaction via backend RPC proxy
+      // (Avoids browser CORS/rate-limit issues with public Solana RPC)
       let txSignature;
       try {
-        txSignature = await connection.sendRawTransaction(signedTransaction.serialize());
+        const serializedTx = btoa(String.fromCharCode(...signedTransaction.serialize()));
+        const sendResult = await sendTransaction(serializedTx);
+        txSignature = sendResult.signature;
       } catch (err: any) {
         if (err.message?.includes("insufficient")) {
           throw new Error("Insufficient USDC balance for this deposit");
@@ -89,16 +92,19 @@ export function useDeposit(protocol: string): UseDepositReturn {
         throw new Error("Transaction failed: " + (err.message || "Unknown error"));
       }
 
-      // 5. Wait for confirmation (using modern API with blockhash context)
+      // 5. Wait for confirmation via backend RPC proxy
       try {
-        await connection.confirmTransaction({
+        const confirmResult = await confirmTransaction({
           signature: txSignature,
           blockhash: buildResult.blockhash,
-          lastValidBlockHeight: buildResult.last_valid_block_height,
-        }, "confirmed");
+          last_valid_block_height: buildResult.last_valid_block_height,
+        });
+        if (!confirmResult.confirmed) {
+          throw new Error(confirmResult.error || "Transaction not confirmed");
+        }
       } catch (err: any) {
         throw new Error(
-          `Transaction sent but confirmation timed out. Check explorer: ${txSignature.slice(0, 16)}...`
+          `Transaction sent but confirmation failed: ${err.message}. Signature: ${txSignature.slice(0, 16)}...`
         );
       }
 
@@ -112,7 +118,7 @@ export function useDeposit(protocol: string): UseDepositReturn {
     } finally {
       setIsDepositing(false);
     }
-  }, [publicKey, connected, signTransaction, connection, protocol]);
+  }, [publicKey, connected, signTransaction, protocol]);
 
   return {
     execute,
