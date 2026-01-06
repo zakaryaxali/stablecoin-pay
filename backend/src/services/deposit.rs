@@ -157,6 +157,16 @@ const RESERVE_LIQUIDITY_TOKEN_PROGRAM_OFFSET: usize = 408;
 const RESERVE_COLLATERAL_MINT_OFFSET: usize = 2560;
 const RESERVE_COLLATERAL_SUPPLY_OFFSET: usize = 2600;
 
+// USDC token configuration
+const USDC_DECIMAL_MULTIPLIER: f64 = 1_000_000.0; // 10^6
+
+// Solana data sizes
+const PUBKEY_SIZE: usize = 32;
+
+// Transaction confirmation settings
+const CONFIRMATION_MAX_RETRIES: u32 = 30;
+const CONFIRMATION_RETRY_DELAY_MS: u64 = 500;
+
 /// Build deposit transaction response
 #[derive(Debug, Serialize)]
 pub struct BuildDepositResponse {
@@ -201,8 +211,8 @@ impl DepositService {
         let owner = Pubkey::from_str(wallet_address)
             .map_err(|_| AppError::InvalidAddress(wallet_address.to_string()))?;
 
-        // Convert USDC amount to micro usdc (~ 10**3 lamports) (6 decimals)
-        let amount_lamports = (amount_usdc * 1_000_000.0) as u64;
+        // Convert USDC amount to lamports (6 decimals)
+        let amount_lamports = (amount_usdc * USDC_DECIMAL_MULTIPLIER) as u64;
 
         // Fetch reserve data for USDC on Kamino
         let reserve = self.get_kamino_usdc_reserve().await?;
@@ -389,7 +399,7 @@ impl DepositService {
 
     /// Parse a Pubkey from raw bytes at a given offset
     fn parse_pubkey(&self, data: &[u8], offset: usize) -> Result<Pubkey, AppError> {
-        if offset + 32 > data.len() {
+        if offset + PUBKEY_SIZE > data.len() {
             return Err(AppError::SolanaRpc(format!(
                 "Offset {} out of bounds for data length {}",
                 offset,
@@ -397,7 +407,7 @@ impl DepositService {
             )));
         }
 
-        let bytes: [u8; 32] = data[offset..offset + 32]
+        let bytes: [u8; PUBKEY_SIZE] = data[offset..offset + PUBKEY_SIZE]
             .try_into()
             .map_err(|_| AppError::SolanaRpc("Failed to parse pubkey bytes".to_string()))?;
 
@@ -489,8 +499,8 @@ impl DepositService {
         last_valid_block_height: u64,
     ) -> Result<bool, AppError> {
         // Poll for confirmation with timeout
-        let max_retries = 30;
-        let retry_delay = std::time::Duration::from_millis(500);
+        let max_retries = CONFIRMATION_MAX_RETRIES;
+        let retry_delay = std::time::Duration::from_millis(CONFIRMATION_RETRY_DELAY_MS);
 
         for _ in 0..max_retries {
             // Check signature status

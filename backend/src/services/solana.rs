@@ -9,6 +9,8 @@ use std::str::FromStr;
 use crate::error::AppError;
 use crate::services::rpc_types::RpcResponse;
 
+const USDC_DECIMALS: u32 = 6;
+
 pub struct SolanaClient {
     client: Client,
     rpc_url: String,
@@ -367,7 +369,7 @@ impl SolanaClient {
             return Ok(None);
         }
 
-        let amount = Decimal::new(amount_raw as i64, 6); // USDC has 6 decimals
+        let amount = Decimal::new(amount_raw as i64, USDC_DECIMALS);
 
         Ok(Some(ParsedTransaction {
             signature: signature.to_string(),
