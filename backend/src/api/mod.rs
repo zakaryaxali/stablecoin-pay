@@ -15,15 +15,30 @@ pub fn routes(state: Arc<AppState>) -> Router {
         .route("/health/detailed", get(handlers::detailed_health))
         .route("/wallets", post(handlers::create_wallet))
         .route("/wallets/:address/balance", get(handlers::get_balance))
-        .route("/wallets/:address/transactions", get(handlers::get_transactions))
-        .route("/wallets/:address/webhook-events", get(handlers::get_webhook_events))
-        .route("/wallets/:address/webhook/test", post(handlers::test_webhook))
+        .route(
+            "/wallets/:address/transactions",
+            get(handlers::get_transactions),
+        )
+        .route(
+            "/wallets/:address/webhook-events",
+            get(handlers::get_webhook_events),
+        )
+        .route(
+            "/wallets/:address/webhook/test",
+            post(handlers::test_webhook),
+        )
         // APY routes
         .route("/apy/rates", get(handlers::get_apy_rates))
         .route("/apy/rates/best", get(handlers::get_best_apy))
         .route("/apy/history", get(handlers::get_apy_history))
         // Deposit routes
-        .route("/deposits/build", post(handlers::build_deposit_transaction));
+        .route("/deposits/build", post(handlers::build_deposit_transaction))
+        // RPC proxy routes (for browser-based transaction submission)
+        .route("/rpc/send-transaction", post(handlers::send_transaction))
+        .route(
+            "/rpc/confirm-transaction",
+            post(handlers::confirm_transaction),
+        );
 
     // Debug endpoints (dev only)
     if !state.config.is_production() {

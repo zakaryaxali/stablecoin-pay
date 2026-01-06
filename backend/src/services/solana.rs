@@ -7,6 +7,7 @@ use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 
 use crate::error::AppError;
+use crate::services::rpc_types::RpcResponse;
 
 pub struct SolanaClient {
     client: Client,
@@ -22,16 +23,6 @@ pub struct TokenBalance {
 }
 
 // JSON-RPC response types
-#[derive(Debug, Deserialize)]
-struct RpcResponse<T> {
-    result: Option<T>,
-    error: Option<RpcError>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RpcError {
-    message: String,
-}
 
 #[derive(Debug, Deserialize)]
 struct TokenAccountsResult {
@@ -152,7 +143,7 @@ impl SolanaClient {
             .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
 
         if let Some(error) = rpc_response.error {
-            return Err(AppError::SolanaRpc(error.message));
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
         }
 
         rpc_response
@@ -192,7 +183,7 @@ impl SolanaClient {
 
         // Check for RPC error
         if let Some(error) = rpc_response.error {
-            return Err(AppError::SolanaRpc(error.message));
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
         }
 
         // Extract balance from response
@@ -258,7 +249,7 @@ impl SolanaClient {
             .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
 
         if let Some(error) = rpc_response.error {
-            return Err(AppError::SolanaRpc(error.message));
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
         }
 
         let result = rpc_response
@@ -301,7 +292,7 @@ impl SolanaClient {
             .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
 
         if let Some(error) = rpc_response.error {
-            return Err(AppError::SolanaRpc(error.message));
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
         }
 
         let result = match rpc_response.result {
