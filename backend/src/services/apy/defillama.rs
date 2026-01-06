@@ -59,10 +59,9 @@ impl DefiLlamaClient {
             .await
             .map_err(|e| AppError::External(format!("Failed to fetch DeFiLlama data: {}", e)))?;
 
-        let data: DefiLlamaResponse = response
-            .json()
-            .await
-            .map_err(|e| AppError::External(format!("Failed to parse DeFiLlama response: {}", e)))?;
+        let data: DefiLlamaResponse = response.json().await.map_err(|e| {
+            AppError::External(format!("Failed to parse DeFiLlama response: {}", e))
+        })?;
 
         let target_projects = ["kamino-lend", "save", "marginfi-lend"];
 
@@ -96,9 +95,15 @@ impl DefiLlamaClient {
             chain: "solana".to_string(),
             token: "USDC".to_string(),
             apy_total: Decimal::from_str(&format!("{:.4}", apy)).unwrap_or_default(),
-            apy_base: pool.apy_base.map(|v| Decimal::from_str(&format!("{:.4}", v)).unwrap_or_default()),
-            apy_reward: pool.apy_reward.map(|v| Decimal::from_str(&format!("{:.4}", v)).unwrap_or_default()),
-            tvl_usd: pool.tvl_usd.map(|v| Decimal::from_str(&format!("{:.2}", v)).unwrap_or_default()),
+            apy_base: pool
+                .apy_base
+                .map(|v| Decimal::from_str(&format!("{:.4}", v)).unwrap_or_default()),
+            apy_reward: pool
+                .apy_reward
+                .map(|v| Decimal::from_str(&format!("{:.4}", v)).unwrap_or_default()),
+            tvl_usd: pool
+                .tvl_usd
+                .map(|v| Decimal::from_str(&format!("{:.2}", v)).unwrap_or_default()),
             pool_id: pool.pool,
             pool_meta: pool.pool_meta,
         })

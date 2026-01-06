@@ -35,7 +35,10 @@ pub async fn build_deposit_transaction(
 
     match req.protocol.as_str() {
         "kamino" => {
-            let result = state.deposit.build_kamino_deposit(&req.wallet, req.amount).await?;
+            let result = state
+                .deposit
+                .build_kamino_deposit(&req.wallet, req.amount)
+                .await?;
             Ok(Json(BuildDepositResponse {
                 transaction: result.transaction,
                 blockhash: result.blockhash,
@@ -46,8 +49,13 @@ pub async fn build_deposit_transaction(
         }
         "save" => {
             // Save/Solend not implemented yet
-            Err(AppError::BadRequest("Save protocol deposits not yet implemented".into()))
+            Err(AppError::BadRequest(
+                "Save protocol deposits not yet implemented".into(),
+            ))
         }
-        _ => Err(AppError::BadRequest(format!("Unknown protocol: {}", req.protocol))),
+        _ => Err(AppError::BadRequest(format!(
+            "Unknown protocol: {}",
+            req.protocol
+        ))),
     }
 }

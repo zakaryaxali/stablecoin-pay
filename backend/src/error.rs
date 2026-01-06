@@ -41,7 +41,10 @@ impl IntoResponse for AppError {
         let (status, message) = match &self {
             AppError::Database(e) => {
                 tracing::error!("Database error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error".to_string(),
+                )
             }
             AppError::SolanaRpc(msg) => {
                 tracing::error!("Solana RPC error: {}", msg);
@@ -60,7 +63,10 @@ impl IntoResponse for AppError {
             }
             AppError::Json(e) => {
                 tracing::error!("JSON error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "JSON serialization error".to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "JSON serialization error".to_string(),
+                )
             }
             AppError::External(msg) => {
                 tracing::error!("External API error: {}", msg);

@@ -65,12 +65,11 @@ impl TransactionRepository {
     }
 
     pub async fn exists(pool: &PgPool, signature: &str) -> Result<bool, AppError> {
-        let exists: (bool,) = sqlx::query_as(
-            "SELECT EXISTS(SELECT 1 FROM transactions WHERE signature = $1)",
-        )
-        .bind(signature)
-        .fetch_one(pool)
-        .await?;
+        let exists: (bool,) =
+            sqlx::query_as("SELECT EXISTS(SELECT 1 FROM transactions WHERE signature = $1)")
+                .bind(signature)
+                .fetch_one(pool)
+                .await?;
 
         Ok(exists.0)
     }

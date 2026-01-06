@@ -115,12 +115,10 @@ impl ApyRateRepository {
         pool: &PgPool,
         older_than: DateTime<Utc>,
     ) -> Result<u64, AppError> {
-        let result = sqlx::query(
-            "DELETE FROM apy_rates WHERE created_at < $1",
-        )
-        .bind(older_than)
-        .execute(pool)
-        .await?;
+        let result = sqlx::query("DELETE FROM apy_rates WHERE created_at < $1")
+            .bind(older_than)
+            .execute(pool)
+            .await?;
 
         Ok(result.rows_affected())
     }

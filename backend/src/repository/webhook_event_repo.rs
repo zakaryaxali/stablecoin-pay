@@ -104,7 +104,11 @@ impl WebhookEventRepository {
         Ok(())
     }
 
-    pub async fn increment_attempt(pool: &PgPool, id: Uuid, error: Option<&str>) -> Result<WebhookEvent, AppError> {
+    pub async fn increment_attempt(
+        pool: &PgPool,
+        id: Uuid,
+        error: Option<&str>,
+    ) -> Result<WebhookEvent, AppError> {
         let event = sqlx::query_as::<_, WebhookEvent>(
             r#"
             UPDATE webhook_events
@@ -123,17 +127,18 @@ impl WebhookEventRepository {
     }
 
     pub async fn count_by_status(pool: &PgPool, status: WebhookStatus) -> Result<i64, AppError> {
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM webhook_events WHERE status = $1",
-        )
-        .bind(status.to_string())
-        .fetch_one(pool)
-        .await?;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM webhook_events WHERE status = $1")
+            .bind(status.to_string())
+            .fetch_one(pool)
+            .await?;
 
         Ok(count.0)
     }
 
-    pub async fn exists_for_transaction(pool: &PgPool, transaction_signature: &str) -> Result<bool, AppError> {
+    pub async fn exists_for_transaction(
+        pool: &PgPool,
+        transaction_signature: &str,
+    ) -> Result<bool, AppError> {
         let exists: (bool,) = sqlx::query_as(
             "SELECT EXISTS(SELECT 1 FROM webhook_events WHERE transaction_signature = $1)",
         )

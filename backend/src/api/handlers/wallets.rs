@@ -33,12 +33,8 @@ pub async fn create_wallet(
     // Validate address
     crate::services::solana::SolanaClient::validate_address(&req.address)?;
 
-    let wallet = WalletRepository::create(
-        &state.db.pool,
-        &req.address,
-        req.webhook_url.as_deref(),
-    )
-    .await?;
+    let wallet =
+        WalletRepository::create(&state.db.pool, &req.address, req.webhook_url.as_deref()).await?;
 
     Ok(Json(WalletResponse {
         address: wallet.address,

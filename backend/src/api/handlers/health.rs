@@ -46,10 +46,7 @@ pub async fn detailed_health(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<DetailedHealthResponse>, AppError> {
     // Check database
-    let db_status = match sqlx::query("SELECT 1")
-        .execute(&state.db.pool)
-        .await
-    {
+    let db_status = match sqlx::query("SELECT 1").execute(&state.db.pool).await {
         Ok(_) => HealthStatus {
             status: "healthy".into(),
             message: None,
@@ -86,7 +83,7 @@ pub async fn detailed_health(
         database: db_status,
         solana_rpc: solana_status,
         background_sync: BackgroundSyncStatus {
-            running: true, // Background sync is always running if server is up
+            running: true,   // Background sync is always running if server is up
             last_sync: None, // Could track this in the future
         },
         webhooks: WebhookHealthStats {

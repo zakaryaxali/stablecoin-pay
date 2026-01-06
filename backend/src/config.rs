@@ -21,8 +21,7 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Result<Self> {
         Ok(Self {
-            database_url: env::var("DATABASE_URL")
-                .context("DATABASE_URL must be set")?,
+            database_url: env::var("DATABASE_URL").context("DATABASE_URL must be set")?,
             solana_rpc_url: env::var("HELIUS_API_KEY")
                 .map(|key| format!("https://mainnet.helius-rpc.com/?api-key={}", key))
                 .or_else(|_| env::var("SOLANA_RPC_URL"))
