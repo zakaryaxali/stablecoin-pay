@@ -343,9 +343,11 @@ impl DepositService {
         // Parse reserve account data using known offsets from Kamino's Reserve struct
         let liquidity_mint = self.parse_pubkey(&reserve_data, RESERVE_LIQUIDITY_MINT_OFFSET)?;
         let liquidity_supply = self.parse_pubkey(&reserve_data, RESERVE_LIQUIDITY_SUPPLY_OFFSET)?;
-        let liquidity_token_program = self.parse_pubkey(&reserve_data, RESERVE_LIQUIDITY_TOKEN_PROGRAM_OFFSET)?;
+        let liquidity_token_program =
+            self.parse_pubkey(&reserve_data, RESERVE_LIQUIDITY_TOKEN_PROGRAM_OFFSET)?;
         let collateral_mint = self.parse_pubkey(&reserve_data, RESERVE_COLLATERAL_MINT_OFFSET)?;
-        let collateral_supply = self.parse_pubkey(&reserve_data, RESERVE_COLLATERAL_SUPPLY_OFFSET)?;
+        let collateral_supply =
+            self.parse_pubkey(&reserve_data, RESERVE_COLLATERAL_SUPPLY_OFFSET)?;
 
         // Collateral token program is same as liquidity for USDC
         let collateral_token_program = liquidity_token_program;
@@ -359,6 +361,14 @@ impl DepositService {
             liquidity_token_program,
             collateral_token_program,
         })
+    }
+
+    /// Get the Kamino collateral (kToken) mint address for USDC
+    ///
+    /// This is the token users receive when depositing USDC to Kamino.
+    pub async fn get_kamino_collateral_mint(&self) -> Result<String, AppError> {
+        let reserve = self.get_kamino_usdc_reserve().await?;
+        Ok(reserve.collateral_mint.to_string())
     }
 
     /// Fetch raw account data from RPC

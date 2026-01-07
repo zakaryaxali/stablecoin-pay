@@ -152,3 +152,40 @@ pub async fn get_transactions(
         count,
     }))
 }
+
+// Staked balance response
+#[derive(Debug, Serialize)]
+pub struct StakedBalanceResponse {
+    pub address: String,
+    pub protocol: String,
+    pub token: String,
+    pub symbol: String,
+    pub amount: String,
+    pub mint: String,
+}
+
+pub async fn get_staked_balance(
+    State(state): State<Arc<AppState>>,
+    Path(address): Path<String>,
+) -> Result<Json<StakedBalanceResponse>, AppError> {
+    // Validate address
+    crate::services::solana::SolanaClient::validate_address(&address)?;
+
+    // Get the Kamino collateral (kToken) mint
+    let collateral_mint = state.deposit.get_kamino_collateral_mint().await?;
+
+    // Get the user's kToken balance
+    let balance = state
+        .solana
+        .get_token_balance(&address, &collateral_mint)
+        .await?;
+
+    Ok(Json(StakedBalanceResponse {
+        address,
+        protocol: "kamino".to_string(),
+        token: "Kamino USDC".to_string(),
+        symbol: "kUSDC".to_string(),
+        amount: balance.amount.to_string(),
+        mint: collateral_mint,
+    }))
+}
