@@ -8,6 +8,15 @@ export interface BalanceResponse {
   usd_value: string;
 }
 
+export interface StakedBalanceResponse {
+  address: string;
+  protocol: string;
+  token: string;
+  symbol: string;
+  amount: string;
+  mint: string;
+}
+
 /**
  * Fetch USDC balance from backend API.
  * Backend proxies the request to Solana RPC with proper API key.
@@ -27,4 +36,18 @@ export async function getUsdcBalance(address: string): Promise<number> {
     console.error("Failed to fetch USDC balance:", error);
     throw error;
   }
+}
+
+/**
+ * Fetch staked (kToken) balance from backend API.
+ */
+export async function getStakedBalance(address: string): Promise<StakedBalanceResponse> {
+  const response = await fetch(`${API_BASE}/wallets/${address}/staked-balance`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  return response.json();
 }
