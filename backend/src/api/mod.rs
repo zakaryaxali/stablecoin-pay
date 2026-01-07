@@ -27,6 +27,10 @@ pub fn routes(state: Arc<AppState>) -> Router {
             "/wallets/:address/webhook/test",
             post(handlers::test_webhook),
         )
+        .route(
+            "/wallets/:address/staked-balance",
+            get(handlers::get_staked_balance),
+        )
         // APY routes
         .route("/apy/rates", get(handlers::get_apy_rates))
         .route("/apy/rates/best", get(handlers::get_best_apy))

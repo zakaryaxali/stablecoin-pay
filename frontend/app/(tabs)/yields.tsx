@@ -6,13 +6,19 @@ import {
   RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { APYTable } from "@/components/APYTable";
 import { ConnectWallet } from "@/components/ConnectWallet";
 import { useApyRates } from "@/hooks/useApyRates";
+import { useStakedBalance } from "@/hooks/useStakedBalance";
 
 export default function YieldsScreen() {
   const router = useRouter();
+  const { publicKey } = useWallet();
   const { rates, bestPoolId, isLoading, isRefreshing, error, refresh } = useApyRates();
+  const { stakedBalance } = useStakedBalance(publicKey?.toBase58() ?? null);
+
+  const hasStakedPosition = stakedBalance && parseFloat(stakedBalance.amount) > 0;
 
   const handleDeposit = (platform: string) => {
     router.push(`/deposit/${platform}`);
@@ -54,6 +60,26 @@ export default function YieldsScreen() {
 
         {/* Wallet Connection */}
         <ConnectWallet />
+
+        {/* Staked Position */}
+        {hasStakedPosition && (
+          <View className="bg-green-50 border border-green-200 rounded-xl p-4 mx-4 mt-4">
+            <Text className="text-green-800 text-sm font-medium mb-1">
+              Your Staked Position
+            </Text>
+            <View className="flex-row items-baseline">
+              <Text className="text-green-900 text-2xl font-bold">
+                {parseFloat(stakedBalance.amount).toFixed(2)}
+              </Text>
+              <Text className="text-green-700 text-sm ml-2">
+                {stakedBalance.symbol}
+              </Text>
+            </View>
+            <Text className="text-green-600 text-xs mt-1">
+              on {stakedBalance.protocol.charAt(0).toUpperCase() + stakedBalance.protocol.slice(1)}
+            </Text>
+          </View>
+        )}
 
         {/* Error message */}
         {error && (

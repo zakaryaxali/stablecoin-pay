@@ -211,6 +211,65 @@ impl SolanaClient {
         })
     }
 
+    /// Get balance of any SPL token for a wallet
+    pub async fn get_token_balance(
+        &self,
+        wallet_address: &str,
+        token_mint: &str,
+    ) -> Result<TokenBalance, AppError> {
+        Self::validate_address(wallet_address)?;
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTokenAccountsByOwner",
+            "params": [
+                wallet_address,
+                { "mint": token_mint },
+                { "encoding": "jsonParsed" }
+            ]
+        });
+
+        let response = self
+            .client
+            .post(&self.rpc_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::SolanaRpc(format!("Request failed: {}", e)))?;
+
+        let rpc_response: RpcResponse<TokenAccountsResult> = response
+            .json()
+            .await
+            .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
+
+        if let Some(error) = rpc_response.error {
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
+        }
+
+        let result = rpc_response
+            .result
+            .ok_or_else(|| AppError::SolanaRpc("No result in response".to_string()))?;
+
+        let mut total_amount: u64 = 0;
+        let mut decimals: u8 = 6; // Default, will be overwritten if account exists
+
+        for account in result.value {
+            let token_amount = &account.account.data.parsed.info.token_amount;
+            let amount_str = &token_amount.amount;
+            total_amount += amount_str.parse::<u64>().unwrap_or(0);
+            decimals = token_amount.decimals;
+        }
+
+        let amount = Decimal::new(total_amount as i64, decimals as u32);
+
+        Ok(TokenBalance {
+            mint: token_mint.to_string(),
+            amount,
+            decimals,
+        })
+    }
+
     pub async fn get_signatures(
         &self,
         wallet_address: &str,
