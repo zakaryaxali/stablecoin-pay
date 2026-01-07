@@ -58,7 +58,9 @@ impl WebhookService {
         transaction: &Transaction,
     ) -> Result<(), AppError> {
         // Check if we already have a webhook event for this transaction
-        if WebhookEventRepository::exists_for_transaction(&self.pool, &transaction.signature).await? {
+        if WebhookEventRepository::exists_for_transaction(&self.pool, &transaction.signature)
+            .await?
+        {
             info!(
                 signature = %transaction.signature,
                 "Webhook event already exists for transaction, skipping"
@@ -151,12 +153,17 @@ impl WebhookService {
                     );
 
                     // Update the event with attempt info
-                    WebhookEventRepository::increment_attempt(&self.pool, event_id, Some(&error_msg))
-                        .await?;
+                    WebhookEventRepository::increment_attempt(
+                        &self.pool,
+                        event_id,
+                        Some(&error_msg),
+                    )
+                    .await?;
 
                     // If we've exhausted retries, mark as failed
                     if attempt_num >= MAX_ATTEMPTS as i32 {
-                        WebhookEventRepository::mark_failed(&self.pool, event_id, &error_msg).await?;
+                        WebhookEventRepository::mark_failed(&self.pool, event_id, &error_msg)
+                            .await?;
                         error!(
                             event_id = %event_id,
                             "Webhook delivery failed after {} attempts",
@@ -220,12 +227,10 @@ impl WebhookService {
             }
 
             // Get the wallet to get the webhook URL
-            let wallet = sqlx::query_as::<_, Wallet>(
-                "SELECT * FROM wallets WHERE address = $1"
-            )
-            .bind(&event.wallet_address)
-            .fetch_optional(&self.pool)
-            .await?;
+            let wallet = sqlx::query_as::<_, Wallet>("SELECT * FROM wallets WHERE address = $1")
+                .bind(&event.wallet_address)
+                .fetch_optional(&self.pool)
+                .await?;
 
             let webhook_url = match wallet.and_then(|w| w.webhook_url) {
                 Some(url) => url,
@@ -244,7 +249,10 @@ impl WebhookService {
             let payload_bytes = serde_json::to_vec(&event.payload)?;
             let signature = self.sign_payload(&payload_bytes);
 
-            match self.send_webhook(&webhook_url, &payload_bytes, &signature).await {
+            match self
+                .send_webhook(&webhook_url, &payload_bytes, &signature)
+                .await
+            {
                 Ok(()) => {
                     WebhookEventRepository::mark_delivered(&self.pool, event.id).await?;
                     retried += 1;
@@ -302,7 +310,10 @@ impl WebhookService {
         let payload_bytes = serde_json::to_vec(&payload)?;
         let signature = self.sign_payload(&payload_bytes);
 
-        match self.send_webhook(webhook_url, &payload_bytes, &signature).await {
+        match self
+            .send_webhook(webhook_url, &payload_bytes, &signature)
+            .await
+        {
             Ok(()) => {
                 WebhookEventRepository::mark_delivered(&self.pool, event.id).await?;
                 info!(wallet = %wallet.address, "Test webhook delivered successfully");
@@ -318,9 +329,12 @@ impl WebhookService {
 
     /// Get webhook delivery statistics
     pub async fn get_stats(&self) -> Result<WebhookStats, AppError> {
-        let pending = WebhookEventRepository::count_by_status(&self.pool, WebhookStatus::Pending).await?;
-        let delivered = WebhookEventRepository::count_by_status(&self.pool, WebhookStatus::Delivered).await?;
-        let failed = WebhookEventRepository::count_by_status(&self.pool, WebhookStatus::Failed).await?;
+        let pending =
+            WebhookEventRepository::count_by_status(&self.pool, WebhookStatus::Pending).await?;
+        let delivered =
+            WebhookEventRepository::count_by_status(&self.pool, WebhookStatus::Delivered).await?;
+        let failed =
+            WebhookEventRepository::count_by_status(&self.pool, WebhookStatus::Failed).await?;
 
         Ok(WebhookStats {
             pending,

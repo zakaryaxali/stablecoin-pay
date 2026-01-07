@@ -7,6 +7,9 @@ use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 
 use crate::error::AppError;
+use crate::services::rpc_types::RpcResponse;
+
+const USDC_DECIMALS: u32 = 6;
 
 pub struct SolanaClient {
     client: Client,
@@ -22,16 +25,6 @@ pub struct TokenBalance {
 }
 
 // JSON-RPC response types
-#[derive(Debug, Deserialize)]
-struct RpcResponse<T> {
-    result: Option<T>,
-    error: Option<RpcError>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RpcError {
-    message: String,
-}
 
 #[derive(Debug, Deserialize)]
 struct TokenAccountsResult {
@@ -129,6 +122,37 @@ impl SolanaClient {
             .map_err(|_| AppError::InvalidAddress(format!("Invalid Solana address: {}", address)))
     }
 
+    /// Get current slot from Solana RPC (used for health checks)
+    pub async fn get_slot(&self) -> Result<u64, AppError> {
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getSlot",
+            "params": []
+        });
+
+        let response = self
+            .client
+            .post(&self.rpc_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::SolanaRpc(format!("Request failed: {}", e)))?;
+
+        let rpc_response: RpcResponse<u64> = response
+            .json()
+            .await
+            .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
+
+        if let Some(error) = rpc_response.error {
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
+        }
+
+        rpc_response
+            .result
+            .ok_or_else(|| AppError::SolanaRpc("No slot in response".to_string()))
+    }
+
     pub async fn get_usdc_balance(&self, wallet_address: &str) -> Result<TokenBalance, AppError> {
         // Validate address
         Self::validate_address(wallet_address)?;
@@ -161,7 +185,7 @@ impl SolanaClient {
 
         // Check for RPC error
         if let Some(error) = rpc_response.error {
-            return Err(AppError::SolanaRpc(error.message));
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
         }
 
         // Extract balance from response
@@ -227,7 +251,7 @@ impl SolanaClient {
             .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
 
         if let Some(error) = rpc_response.error {
-            return Err(AppError::SolanaRpc(error.message));
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
         }
 
         let result = rpc_response
@@ -270,7 +294,7 @@ impl SolanaClient {
             .map_err(|e| AppError::SolanaRpc(format!("Failed to parse response: {}", e)))?;
 
         if let Some(error) = rpc_response.error {
-            return Err(AppError::SolanaRpc(error.message));
+            return Err(AppError::SolanaRpc(format!("{:?}", error)));
         }
 
         let result = match rpc_response.result {
@@ -345,7 +369,7 @@ impl SolanaClient {
             return Ok(None);
         }
 
-        let amount = Decimal::new(amount_raw as i64, 6); // USDC has 6 decimals
+        let amount = Decimal::new(amount_raw as i64, USDC_DECIMALS);
 
         Ok(Some(ParsedTransaction {
             signature: signature.to_string(),
