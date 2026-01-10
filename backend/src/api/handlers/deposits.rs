@@ -14,7 +14,15 @@ pub struct BuildDepositRequest {
     pub protocol: String, // "kamino" or "save"
 }
 
-/// Build deposit transaction response
+/// Build withdraw transaction request
+#[derive(Debug, Deserialize)]
+pub struct BuildWithdrawRequest {
+    pub wallet: String,
+    pub amount: f64,      // kToken amount to redeem
+    pub protocol: String, // "kamino" or "save"
+}
+
+/// Build deposit/withdraw transaction response
 #[derive(Debug, Serialize)]
 pub struct BuildDepositResponse {
     pub transaction: String,
@@ -51,6 +59,43 @@ pub async fn build_deposit_transaction(
             // Save/Solend not implemented yet
             Err(AppError::BadRequest(
                 "Save protocol deposits not yet implemented".into(),
+            ))
+        }
+        _ => Err(AppError::BadRequest(format!(
+            "Unknown protocol: {}",
+            req.protocol
+        ))),
+    }
+}
+
+/// Build an unsigned withdraw transaction for the specified protocol
+pub async fn build_withdraw_transaction(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<BuildWithdrawRequest>,
+) -> Result<Json<BuildDepositResponse>, AppError> {
+    // Validate amount
+    if req.amount <= 0.0 {
+        return Err(AppError::BadRequest("Amount must be positive".into()));
+    }
+
+    match req.protocol.as_str() {
+        "kamino" => {
+            let result = state
+                .deposit
+                .build_kamino_withdraw(&req.wallet, req.amount)
+                .await?;
+            Ok(Json(BuildDepositResponse {
+                transaction: result.transaction,
+                blockhash: result.blockhash,
+                last_valid_block_height: result.last_valid_block_height,
+                protocol: result.protocol,
+                amount_lamports: result.amount_lamports,
+            }))
+        }
+        "save" => {
+            // Save/Solend not implemented yet
+            Err(AppError::BadRequest(
+                "Save protocol withdrawals not yet implemented".into(),
             ))
         }
         _ => Err(AppError::BadRequest(format!(

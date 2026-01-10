@@ -37,6 +37,11 @@ pub fn routes(state: Arc<AppState>) -> Router {
         .route("/apy/history", get(handlers::get_apy_history))
         // Deposit routes
         .route("/deposits/build", post(handlers::build_deposit_transaction))
+        // Withdraw routes
+        .route(
+            "/withdrawals/build",
+            post(handlers::build_withdraw_transaction),
+        )
         // RPC proxy routes (for browser-based transaction submission)
         .route("/rpc/send-transaction", post(handlers::send_transaction))
         .route(

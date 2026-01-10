@@ -371,6 +371,131 @@ impl DepositService {
         Ok(reserve.collateral_mint.to_string())
     }
 
+    /// Build an unsigned Kamino withdraw (redeem) transaction
+    ///
+    /// Redeems kTokens back to USDC using `redeem_reserve_collateral` instruction.
+    pub async fn build_kamino_withdraw(
+        &self,
+        wallet_address: &str,
+        amount_ktokens: f64,
+    ) -> Result<BuildDepositResponse, AppError> {
+        let owner = Pubkey::from_str(wallet_address)
+            .map_err(|_| AppError::InvalidAddress(wallet_address.to_string()))?;
+
+        // kTokens also have 6 decimals (same as USDC)
+        let amount_lamports = (amount_ktokens * USDC_DECIMAL_MULTIPLIER) as u64;
+
+        // Fetch reserve data for USDC on Kamino
+        let reserve = self.get_kamino_usdc_reserve().await?;
+
+        // Get recent blockhash and last valid block height
+        let (blockhash, last_valid_block_height) = self.get_recent_blockhash().await?;
+
+        // Derive PDAs and associated token accounts
+        let lending_market = Pubkey::from_str(KAMINO_LENDING_MARKET).unwrap();
+        let program_id = Pubkey::from_str(KAMINO_PROGRAM_ID).unwrap();
+
+        // Lending market authority PDA
+        let (lending_market_authority, _) =
+            Pubkey::find_program_address(&[b"lma", lending_market.as_ref()], &program_id);
+
+        // User's source collateral token account (kToken ATA) - user sends kTokens FROM here
+        let user_source_collateral = get_associated_token_address(
+            &owner,
+            &reserve.collateral_mint,
+            &reserve.collateral_token_program,
+        );
+
+        // User's destination liquidity token account (USDC ATA) - user receives USDC TO here
+        let user_destination_liquidity = get_associated_token_address(
+            &owner,
+            &reserve.liquidity_mint,
+            &reserve.liquidity_token_program,
+        );
+
+        // Build the withdraw instruction
+        let withdraw_instruction = self.build_withdraw_instruction(
+            &owner,
+            &reserve,
+            &lending_market,
+            &lending_market_authority,
+            &user_source_collateral,
+            &user_destination_liquidity,
+            amount_lamports,
+        )?;
+
+        // Create the transaction with blockhash
+        let blockhash_hash = Hash::from_str(&blockhash)
+            .map_err(|_| AppError::SolanaRpc("Invalid blockhash".to_string()))?;
+        let message =
+            Message::new_with_blockhash(&[withdraw_instruction], Some(&owner), &blockhash_hash);
+
+        let transaction = Transaction::new_unsigned(message);
+
+        // Serialize to base64
+        let tx_bytes = bincode::serialize(&transaction)
+            .map_err(|e| AppError::SolanaRpc(format!("Failed to serialize transaction: {}", e)))?;
+        let tx_base64 = STANDARD.encode(&tx_bytes);
+
+        Ok(BuildDepositResponse {
+            transaction: tx_base64,
+            blockhash,
+            last_valid_block_height,
+            protocol: "kamino".to_string(),
+            amount_lamports,
+        })
+    }
+
+    /// Build the redeem_reserve_collateral instruction (withdraw/redeem)
+    ///
+    /// Account structure from Kamino source:
+    /// https://github.com/Kamino-Finance/klend/blob/master/programs/klend/src/handlers/handler_redeem_reserve_collateral.rs
+    fn build_withdraw_instruction(
+        &self,
+        owner: &Pubkey,
+        reserve: &KaminoReserveData,
+        lending_market: &Pubkey,
+        lending_market_authority: &Pubkey,
+        user_source_collateral: &Pubkey,
+        user_destination_liquidity: &Pubkey,
+        amount: u64,
+    ) -> Result<Instruction, AppError> {
+        let program_id = Pubkey::from_str(KAMINO_PROGRAM_ID).unwrap();
+        let sysvar_instructions = Pubkey::from_str(SYSVAR_INSTRUCTIONS).unwrap();
+
+        // Account metas for RedeemReserveCollateral instruction
+        // Key differences from deposit:
+        // 1. lending_market comes BEFORE reserve (positions 2-3 swapped)
+        // 2. owner is NOT mut for redeem
+        // 3. reserve_liquidity_mint comes before reserve_collateral_mint
+        let accounts = vec![
+            AccountMeta::new_readonly(*owner, true), // 1. owner (signer, NOT mut)
+            AccountMeta::new_readonly(*lending_market, false), // 2. lending_market
+            AccountMeta::new(reserve.reserve_address, false), // 3. reserve (mut)
+            AccountMeta::new_readonly(*lending_market_authority, false), // 4. lending_market_authority
+            AccountMeta::new_readonly(reserve.liquidity_mint, false), // 5. reserve_liquidity_mint (NOT mut)
+            AccountMeta::new(reserve.collateral_mint, false), // 6. reserve_collateral_mint (mut)
+            AccountMeta::new(reserve.liquidity_supply, false), // 7. reserve_liquidity_supply (mut)
+            AccountMeta::new(*user_source_collateral, false), // 8. user_source_collateral (mut)
+            AccountMeta::new(*user_destination_liquidity, false), // 9. user_destination_liquidity (mut)
+            AccountMeta::new_readonly(reserve.collateral_token_program, false), // 10. collateral_token_program
+            AccountMeta::new_readonly(reserve.liquidity_token_program, false), // 11. liquidity_token_program
+            AccountMeta::new_readonly(sysvar_instructions, false), // 12. instruction_sysvar_account
+        ];
+
+        // Instruction data: discriminator + amount (u64 LE)
+        let discriminator = anchor_discriminator("redeem_reserve_collateral");
+        let mut data = Vec::with_capacity(16);
+        data.extend_from_slice(&discriminator);
+        data.extend_from_slice(&amount.to_le_bytes());
+
+        Ok(Instruction {
+            program_id,
+            accounts,
+            data,
+        })
+    }
+
     /// Fetch raw account data from RPC
     async fn fetch_account_data(&self, address: &Pubkey) -> Result<Vec<u8>, AppError> {
         let body = json!({
