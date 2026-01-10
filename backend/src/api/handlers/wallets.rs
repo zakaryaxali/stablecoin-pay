@@ -153,15 +153,21 @@ pub async fn get_transactions(
     }))
 }
 
-// Staked balance response
+// Staked position for a single protocol
 #[derive(Debug, Serialize)]
-pub struct StakedBalanceResponse {
-    pub address: String,
+pub struct StakedPosition {
     pub protocol: String,
     pub token: String,
     pub symbol: String,
     pub amount: String,
     pub mint: String,
+}
+
+// Staked balance response with multiple positions
+#[derive(Debug, Serialize)]
+pub struct StakedBalanceResponse {
+    pub address: String,
+    pub positions: Vec<StakedPosition>,
 }
 
 pub async fn get_staked_balance(
@@ -171,21 +177,37 @@ pub async fn get_staked_balance(
     // Validate address
     crate::services::solana::SolanaClient::validate_address(&address)?;
 
-    // Get the Kamino collateral (kToken) mint
-    let collateral_mint = state.deposit.get_kamino_collateral_mint().await?;
+    let mut positions = Vec::new();
 
-    // Get the user's kToken balance
-    let balance = state
-        .solana
-        .get_token_balance(&address, &collateral_mint)
-        .await?;
+    // Get Kamino position (kToken)
+    if let Ok(kamino_mint) = state.deposit.get_kamino_collateral_mint().await {
+        if let Ok(balance) = state.solana.get_token_balance(&address, &kamino_mint).await {
+            if !balance.amount.is_zero() {
+                positions.push(StakedPosition {
+                    protocol: "kamino".to_string(),
+                    token: "Kamino USDC".to_string(),
+                    symbol: "kUSDC".to_string(),
+                    amount: balance.amount.to_string(),
+                    mint: kamino_mint,
+                });
+            }
+        }
+    }
 
-    Ok(Json(StakedBalanceResponse {
-        address,
-        protocol: "kamino".to_string(),
-        token: "Kamino USDC".to_string(),
-        symbol: "kUSDC".to_string(),
-        amount: balance.amount.to_string(),
-        mint: collateral_mint,
-    }))
+    // Get Save position (cToken) - we use the Main Pool reserve
+    if let Ok(save_mint) = state.deposit.get_save_collateral_mint().await {
+        if let Ok(balance) = state.solana.get_token_balance(&address, &save_mint).await {
+            if !balance.amount.is_zero() {
+                positions.push(StakedPosition {
+                    protocol: "save".to_string(),
+                    token: "Save USDC (Main Pool)".to_string(),
+                    symbol: "cUSDC".to_string(),
+                    amount: balance.amount.to_string(),
+                    mint: save_mint,
+                });
+            }
+        }
+    }
+
+    Ok(Json(StakedBalanceResponse { address, positions }))
 }

@@ -56,10 +56,17 @@ pub async fn build_deposit_transaction(
             }))
         }
         "save" => {
-            // Save/Solend not implemented yet
-            Err(AppError::BadRequest(
-                "Save protocol deposits not yet implemented".into(),
-            ))
+            let result = state
+                .deposit
+                .build_save_deposit(&req.wallet, req.amount)
+                .await?;
+            Ok(Json(BuildDepositResponse {
+                transaction: result.transaction,
+                blockhash: result.blockhash,
+                last_valid_block_height: result.last_valid_block_height,
+                protocol: result.protocol,
+                amount_lamports: result.amount_lamports,
+            }))
         }
         _ => Err(AppError::BadRequest(format!(
             "Unknown protocol: {}",
@@ -93,10 +100,17 @@ pub async fn build_withdraw_transaction(
             }))
         }
         "save" => {
-            // Save/Solend not implemented yet
-            Err(AppError::BadRequest(
-                "Save protocol withdrawals not yet implemented".into(),
-            ))
+            let result = state
+                .deposit
+                .build_save_withdraw(&req.wallet, req.amount)
+                .await?;
+            Ok(Json(BuildDepositResponse {
+                transaction: result.transaction,
+                blockhash: result.blockhash,
+                last_valid_block_height: result.last_valid_block_height,
+                protocol: result.protocol,
+                amount_lamports: result.amount_lamports,
+            }))
         }
         _ => Err(AppError::BadRequest(format!(
             "Unknown protocol: {}",

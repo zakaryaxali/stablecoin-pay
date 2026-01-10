@@ -3,6 +3,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use std::str::FromStr;
 
+use super::protocols::{defillama_project_names, find_by_defillama_name};
 use crate::error::AppError;
 
 const DEFILLAMA_YIELDS_URL: &str = "https://yields.llama.fi/pools";
@@ -63,7 +64,7 @@ impl DefiLlamaClient {
             AppError::External(format!("Failed to parse DeFiLlama response: {}", e))
         })?;
 
-        let target_projects = ["kamino-lend", "save", "marginfi-lend"];
+        let target_projects = defillama_project_names();
 
         let rates: Vec<PoolRate> = data
             .data
@@ -72,6 +73,12 @@ impl DefiLlamaClient {
                 pool.chain.to_lowercase() == "solana"
                     && pool.symbol.to_uppercase() == "USDC"
                     && target_projects.contains(&pool.project.as_str())
+            })
+            // Apply protocol-specific pool filters (e.g., Save only uses Main Pool)
+            .filter(|pool| {
+                find_by_defillama_name(&pool.project)
+                    .map(|config| config.matches_pool(pool.pool_meta.as_deref()))
+                    .unwrap_or(false)
             })
             .filter_map(|pool| self.convert_pool_to_rate(pool))
             .collect();
@@ -83,15 +90,10 @@ impl DefiLlamaClient {
     fn convert_pool_to_rate(&self, pool: DefiLlamaPool) -> Option<PoolRate> {
         let apy = pool.apy?;
 
-        let platform = match pool.project.as_str() {
-            "kamino-lend" => "kamino",
-            "save" => "save",
-            "marginfi-lend" => "marginfi",
-            _ => return None,
-        };
+        let config = find_by_defillama_name(&pool.project)?;
 
         Some(PoolRate {
-            platform: platform.to_string(),
+            platform: config.internal_name.to_string(),
             chain: "solana".to_string(),
             token: "USDC".to_string(),
             apy_total: Decimal::from_str(&format!("{:.4}", apy)).unwrap_or_default(),
