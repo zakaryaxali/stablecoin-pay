@@ -4,6 +4,7 @@ import {
   Text,
   ActivityIndicator,
   RefreshControl,
+  Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -64,20 +65,30 @@ export default function YieldsScreen() {
         {/* Staked Position */}
         {hasStakedPosition && (
           <View className="bg-green-50 border border-green-200 rounded-xl p-4 mx-4 mt-4">
-            <Text className="text-green-800 text-sm font-medium mb-1">
-              Your Staked Position
-            </Text>
-            <View className="flex-row items-baseline">
-              <Text className="text-green-900 text-2xl font-bold">
-                {parseFloat(stakedBalance.amount).toFixed(2)}
-              </Text>
-              <Text className="text-green-700 text-sm ml-2">
-                {stakedBalance.symbol}
-              </Text>
+            <View className="flex-row justify-between items-start">
+              <View>
+                <Text className="text-green-800 text-sm font-medium mb-1">
+                  Your Staked Position
+                </Text>
+                <View className="flex-row items-baseline">
+                  <Text className="text-green-900 text-2xl font-bold">
+                    {parseFloat(stakedBalance.amount).toFixed(2)}
+                  </Text>
+                  <Text className="text-green-700 text-sm ml-2">
+                    {stakedBalance.symbol}
+                  </Text>
+                </View>
+                <Text className="text-green-600 text-xs mt-1">
+                  on {stakedBalance.protocol.charAt(0).toUpperCase() + stakedBalance.protocol.slice(1)}
+                </Text>
+              </View>
+              <Pressable
+                className="bg-green-600 px-4 py-2 rounded-lg active:bg-green-700"
+                onPress={() => router.push(`/withdraw/${stakedBalance.protocol}`)}
+              >
+                <Text className="text-white font-semibold text-sm">Withdraw</Text>
+              </Pressable>
             </View>
-            <Text className="text-green-600 text-xs mt-1">
-              on {stakedBalance.protocol.charAt(0).toUpperCase() + stakedBalance.protocol.slice(1)}
-            </Text>
           </View>
         )}
 

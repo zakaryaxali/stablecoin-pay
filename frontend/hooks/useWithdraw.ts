@@ -1,0 +1,130 @@
+import { useState, useCallback } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { Transaction } from "@solana/web3.js";
+import { buildWithdrawTransaction } from "@/services/withdraw";
+import { sendTransaction, confirmTransaction } from "@/services/rpc";
+import { getPlatformName } from "@/services/apy";
+
+interface UseWithdrawReturn {
+  execute: (amount: number) => Promise<void>;
+  isWithdrawing: boolean;
+  error: string | null;
+  success: string | null;
+  signature: string | null;
+  reset: () => void;
+}
+
+export function useWithdraw(protocol: string): UseWithdrawReturn {
+  const { publicKey, connected, signTransaction } = useWallet();
+
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [signature, setSignature] = useState<string | null>(null);
+
+  const reset = useCallback(() => {
+    setError(null);
+    setSuccess(null);
+    setSignature(null);
+  }, []);
+
+  const execute = useCallback(async (amount: number) => {
+    if (!publicKey || !connected) {
+      setError("Please connect your wallet first");
+      return;
+    }
+
+    if (!signTransaction) {
+      setError("Wallet does not support signing transactions");
+      return;
+    }
+
+    setIsWithdrawing(true);
+    setError(null);
+    setSuccess(null);
+    setSignature(null);
+
+    try {
+      // 1. Build unsigned transaction on backend
+      let buildResult;
+      try {
+        buildResult = await buildWithdrawTransaction({
+          wallet: publicKey.toBase58(),
+          amount,
+          protocol: protocol as "kamino" | "save",
+        });
+      } catch (err: any) {
+        const message = err.message?.includes("fetch")
+          ? "Cannot connect to server. Please check if the backend is running."
+          : err.message || "Failed to build transaction";
+        throw new Error(message);
+      }
+
+      // 2. Deserialize the transaction
+      const txBytes = Uint8Array.from(atob(buildResult.transaction), c => c.charCodeAt(0));
+      const transaction = Transaction.from(txBytes);
+
+      // 3. Sign the transaction with the wallet
+      let signedTransaction;
+      try {
+        signedTransaction = await signTransaction(transaction);
+      } catch (err: any) {
+        if (err.message?.includes("User rejected") || err.message?.includes("cancelled")) {
+          throw new Error("Transaction cancelled by user");
+        }
+        throw new Error("Wallet failed to sign: " + (err.message || "Unknown error"));
+      }
+
+      // 4. Send the signed transaction via backend RPC proxy
+      let txSignature;
+      try {
+        const serializedTx = btoa(String.fromCharCode(...signedTransaction.serialize()));
+        const sendResult = await sendTransaction(serializedTx);
+        txSignature = sendResult.signature;
+      } catch (err: any) {
+        if (err.message?.includes("insufficient")) {
+          throw new Error("Insufficient kToken balance for this withdrawal");
+        }
+        if (err.message?.includes("0x1")) {
+          throw new Error("Insufficient SOL for transaction fees");
+        }
+        throw new Error("Transaction failed: " + (err.message || "Unknown error"));
+      }
+
+      // 5. Wait for confirmation via backend RPC proxy
+      try {
+        const confirmResult = await confirmTransaction({
+          signature: txSignature,
+          blockhash: buildResult.blockhash,
+          last_valid_block_height: buildResult.last_valid_block_height,
+        });
+        if (!confirmResult.confirmed) {
+          throw new Error(confirmResult.error || "Transaction not confirmed");
+        }
+      } catch (err: any) {
+        throw new Error(
+          `Transaction sent but confirmation failed: ${err.message}. Signature: ${txSignature.slice(0, 16)}...`
+        );
+      }
+
+      setSignature(txSignature);
+      setSuccess(
+        `Successfully withdrew ${amount} kTokens from ${getPlatformName(protocol)}! Transaction: ${txSignature.slice(0, 8)}...`
+      );
+    } catch (err: any) {
+      console.error("Withdraw failed:", err);
+      setError(err.message || "Withdrawal failed. Please try again.");
+    } finally {
+      setIsWithdrawing(false);
+    }
+  }, [publicKey, connected, signTransaction, protocol]);
+
+  return {
+    execute,
+    isWithdrawing,
+    error,
+    success,
+    signature,
+    reset,
+  };
+}
