@@ -70,10 +70,13 @@ function WithdrawScreenWeb({ protocol }: { protocol: string }) {
   };
 
   const platformName = getPlatformName(protocol);
-  const stakedAmount = stakedBalance ? parseFloat(stakedBalance.amount) : 0;
-  const stakedSymbol = stakedBalance?.symbol || "kToken";
 
-  // Check if user has staked position
+  // Find the position for this specific protocol
+  const position = stakedBalance?.positions?.find(p => p.protocol === protocol);
+  const stakedAmount = position ? parseFloat(position.amount) : 0;
+  const stakedSymbol = position?.symbol || "kToken";
+
+  // Check if user has staked position for this protocol
   const hasStakedPosition = stakedAmount > 0;
 
   return (

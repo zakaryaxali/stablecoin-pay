@@ -8,13 +8,17 @@ export interface BalanceResponse {
   usd_value: string;
 }
 
-export interface StakedBalanceResponse {
-  address: string;
+export interface StakedPosition {
   protocol: string;
   token: string;
   symbol: string;
   amount: string;
   mint: string;
+}
+
+export interface StakedBalanceResponse {
+  address: string;
+  positions: StakedPosition[];
 }
 
 /**

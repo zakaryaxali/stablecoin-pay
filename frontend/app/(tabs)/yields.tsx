@@ -19,7 +19,8 @@ export default function YieldsScreen() {
   const { rates, bestPoolId, isLoading, isRefreshing, error, refresh } = useApyRates();
   const { stakedBalance } = useStakedBalance(publicKey?.toBase58() ?? null);
 
-  const hasStakedPosition = stakedBalance && parseFloat(stakedBalance.amount) > 0;
+  const positions = stakedBalance?.positions ?? [];
+  const hasStakedPositions = positions.length > 0;
 
   const handleDeposit = (platform: string) => {
     router.push(`/deposit/${platform}`);
@@ -62,33 +63,40 @@ export default function YieldsScreen() {
         {/* Wallet Connection */}
         <ConnectWallet />
 
-        {/* Staked Position */}
-        {hasStakedPosition && (
-          <View className="bg-green-50 border border-green-200 rounded-xl p-4 mx-4 mt-4">
-            <View className="flex-row justify-between items-start">
-              <View>
-                <Text className="text-green-800 text-sm font-medium mb-1">
-                  Your Staked Position
-                </Text>
-                <View className="flex-row items-baseline">
-                  <Text className="text-green-900 text-2xl font-bold">
-                    {parseFloat(stakedBalance.amount).toFixed(2)}
-                  </Text>
-                  <Text className="text-green-700 text-sm ml-2">
-                    {stakedBalance.symbol}
-                  </Text>
-                </View>
-                <Text className="text-green-600 text-xs mt-1">
-                  on {stakedBalance.protocol.charAt(0).toUpperCase() + stakedBalance.protocol.slice(1)}
-                </Text>
-              </View>
-              <Pressable
-                className="bg-green-600 px-4 py-2 rounded-lg active:bg-green-700"
-                onPress={() => router.push(`/withdraw/${stakedBalance.protocol}`)}
+        {/* Staked Positions */}
+        {hasStakedPositions && (
+          <View className="mx-4 mt-4">
+            <Text className="text-green-800 text-sm font-medium mb-2">
+              Your Staked Positions
+            </Text>
+            {positions.map((position, index) => (
+              <View
+                key={position.protocol}
+                className={`bg-green-50 border border-green-200 rounded-xl p-4 ${index > 0 ? 'mt-2' : ''}`}
               >
-                <Text className="text-white font-semibold text-sm">Withdraw</Text>
-              </Pressable>
-            </View>
+                <View className="flex-row justify-between items-start">
+                  <View>
+                    <View className="flex-row items-baseline">
+                      <Text className="text-green-900 text-2xl font-bold">
+                        {parseFloat(position.amount).toFixed(2)}
+                      </Text>
+                      <Text className="text-green-700 text-sm ml-2">
+                        {position.symbol}
+                      </Text>
+                    </View>
+                    <Text className="text-green-600 text-xs mt-1">
+                      on {position.protocol.charAt(0).toUpperCase() + position.protocol.slice(1)}
+                    </Text>
+                  </View>
+                  <Pressable
+                    className="bg-green-600 px-4 py-2 rounded-lg active:bg-green-700"
+                    onPress={() => router.push(`/withdraw/${position.protocol}`)}
+                  >
+                    <Text className="text-white font-semibold text-sm">Withdraw</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
