@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -6,7 +7,7 @@ import {
   RefreshControl,
   Pressable,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { APYTable } from "@/components/APYTable";
 import { ConnectWallet } from "@/components/ConnectWallet";
@@ -16,8 +17,19 @@ import { useStakedBalance } from "@/hooks/useStakedBalance";
 export default function YieldsScreen() {
   const router = useRouter();
   const { publicKey } = useWallet();
-  const { rates, bestPoolId, isLoading, isRefreshing, error, refresh } = useApyRates();
-  const { stakedBalance } = useStakedBalance(publicKey?.toBase58() ?? null);
+  const { rates, bestPoolId, isLoading, isRefreshing, error, refresh: refreshApy } = useApyRates();
+  const { stakedBalance, refetch: refetchStaked } = useStakedBalance(publicKey?.toBase58() ?? null);
+
+  const refresh = async () => {
+    await Promise.all([refreshApy(), refetchStaked()]);
+  };
+
+  // Refetch staked balance when screen comes into focus (e.g., after deposit/withdraw)
+  useFocusEffect(
+    useCallback(() => {
+      refetchStaked();
+    }, [refetchStaked])
+  );
 
   const positions = stakedBalance?.positions ?? [];
   const hasStakedPositions = positions.length > 0;
