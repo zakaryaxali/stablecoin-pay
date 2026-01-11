@@ -59,6 +59,9 @@ export default function YieldsScreen() {
           />
         }
       >
+        {/* Wallet Connection */}
+        <ConnectWallet />
+
         {/* Header */}
         <View className="bg-indigo-600 rounded-2xl p-6 mx-4 mt-4">
           <Text className="text-indigo-200 text-sm font-medium mb-1">
@@ -71,9 +74,6 @@ export default function YieldsScreen() {
             Deposit USDC to Solana DeFi protocols and earn passive income
           </Text>
         </View>
-
-        {/* Wallet Connection */}
-        <ConnectWallet />
 
         {/* Staked Positions */}
         {hasStakedPositions && (

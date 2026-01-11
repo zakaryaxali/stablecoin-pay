@@ -54,7 +54,7 @@ export default function HomeScreen() {
             <BalanceCard balance={balance} />
             <TransactionList
               transactions={transactions}
-              limit={5}
+              limit={50}
               showHeader={true}
             />
           </>
