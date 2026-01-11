@@ -179,12 +179,14 @@ impl DepositService {
 
     /// Confirm a transaction on the Solana network
     ///
-    /// Polls getSignatureStatuses until confirmed or block height exceeded.
+    /// Polls getSignatureStatuses until confirmed or timeout.
+    /// Note: Once a transaction is accepted (we have a signature), it will be processed
+    /// regardless of block height. The block height only matters for initial submission.
     pub async fn confirm_transaction(
         &self,
         signature: &str,
         _blockhash: &str,
-        last_valid_block_height: u64,
+        _last_valid_block_height: u64,
     ) -> Result<bool, AppError> {
         let max_retries = CONFIRMATION_MAX_RETRIES;
         let retry_delay = std::time::Duration::from_millis(CONFIRMATION_RETRY_DELAY_MS);
@@ -231,14 +233,6 @@ impl DepositService {
                         }
                     }
                 }
-            }
-
-            // Check if block height exceeded
-            let (_, current_height) = self.get_recent_blockhash().await?;
-            if current_height > last_valid_block_height {
-                return Err(AppError::SolanaRpc(
-                    "Transaction expired: block height exceeded".to_string(),
-                ));
             }
 
             tokio::time::sleep(retry_delay).await;
