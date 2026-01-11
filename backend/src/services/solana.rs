@@ -7,6 +7,7 @@ use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 
 use crate::error::AppError;
+use crate::services::deposit::constants::{KAMINO_PROGRAM_ID, SAVE_PROGRAM_ID};
 use crate::services::rpc_types::RpcResponse;
 
 const USDC_DECIMALS: u32 = 6;
@@ -69,6 +70,49 @@ struct TokenAmount {
 struct TransactionResult {
     block_time: Option<i64>,
     meta: Option<TransactionMeta>,
+    transaction: Option<TransactionData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TransactionData {
+    message: TransactionMessage,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TransactionMessage {
+    account_keys: Vec<AccountKeyInfo>,
+}
+
+/// Account key info - can be a simple string or a parsed object with pubkey field
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum AccountKeyInfo {
+    Parsed { pubkey: String },
+    Simple(String),
+}
+
+impl AccountKeyInfo {
+    fn pubkey(&self) -> &str {
+        match self {
+            AccountKeyInfo::Parsed { pubkey } => pubkey,
+            AccountKeyInfo::Simple(s) => s,
+        }
+    }
+}
+
+/// Detect staking protocol from transaction account keys
+fn detect_staking_protocol(account_keys: &[AccountKeyInfo]) -> Option<String> {
+    for key in account_keys {
+        let pubkey = key.pubkey();
+        if pubkey == KAMINO_PROGRAM_ID {
+            return Some("kamino".to_string());
+        }
+        if pubkey == SAVE_PROGRAM_ID {
+            return Some("save".to_string());
+        }
+    }
+    None
 }
 
 #[derive(Debug, Deserialize)]
@@ -104,6 +148,7 @@ pub struct ParsedTransaction {
     pub token_mint: String,
     pub counterparty: String,
     pub block_time: DateTime<Utc>,
+    pub protocol: Option<String>, // "kamino", "save", or None for regular transfers
 }
 
 impl SolanaClient {
@@ -430,6 +475,13 @@ impl SolanaClient {
 
         let amount = Decimal::new(amount_raw as i64, USDC_DECIMALS);
 
+        // Detect staking protocol from account keys
+        let protocol = result
+            .transaction
+            .as_ref()
+            .map(|tx| detect_staking_protocol(&tx.message.account_keys))
+            .flatten();
+
         Ok(Some(ParsedTransaction {
             signature: signature.to_string(),
             wallet_address: wallet_address.to_string(),
@@ -438,6 +490,7 @@ impl SolanaClient {
             token_mint: self.usdc_mint.clone(),
             counterparty: counterparty.unwrap_or_else(|| "unknown".to_string()),
             block_time,
+            protocol,
         }))
     }
 

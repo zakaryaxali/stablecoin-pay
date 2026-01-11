@@ -166,6 +166,7 @@ impl SyncService {
                 &parsed.counterparty,
                 TransactionStatus::Confirmed,
                 parsed.block_time,
+                parsed.protocol.as_deref(),
             )
             .await;
 

@@ -14,7 +14,7 @@
 //! frontend build the Transaction natively. This avoids SDK version coupling and
 //! gives the frontend flexibility to add instructions (e.g., create ATAs).
 
-mod constants;
+pub mod constants;
 mod kamino;
 mod rpc;
 mod save;

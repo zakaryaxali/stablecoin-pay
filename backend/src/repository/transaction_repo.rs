@@ -18,11 +18,12 @@ impl TransactionRepository {
         counterparty: &str,
         status: TransactionStatus,
         block_time: DateTime<Utc>,
+        protocol: Option<&str>,
     ) -> Result<Transaction, AppError> {
         let tx = sqlx::query_as::<_, Transaction>(
             r#"
-            INSERT INTO transactions (signature, wallet_address, tx_type, amount, token_mint, counterparty, status, block_time)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO transactions (signature, wallet_address, tx_type, amount, token_mint, counterparty, status, block_time, protocol)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (signature) DO NOTHING
             RETURNING *
             "#,
@@ -35,6 +36,7 @@ impl TransactionRepository {
         .bind(counterparty)
         .bind(status.to_string())
         .bind(block_time)
+        .bind(protocol)
         .fetch_one(pool)
         .await?;
 

@@ -49,4 +49,5 @@ pub struct Transaction {
     pub status: TransactionStatus,
     pub block_time: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
+    pub protocol: Option<String>,
 }

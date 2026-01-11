@@ -129,6 +129,7 @@ pub async fn get_transactions(
                     &tx.counterparty,
                     TransactionStatus::Confirmed,
                     tx.block_time,
+                    tx.protocol.as_deref(),
                 )
                 .await;
             }
