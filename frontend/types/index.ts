@@ -8,6 +8,7 @@ export interface Balance {
 
 export type TransactionType = "send" | "receive";
 export type TransactionStatus = "confirmed" | "pending" | "failed";
+export type StakingProtocol = "kamino" | "save";
 
 export interface Transaction {
   id: string;
@@ -19,4 +20,5 @@ export interface Transaction {
   status: TransactionStatus;
   counterparty: string;
   signature: string;
+  protocol?: StakingProtocol;
 }

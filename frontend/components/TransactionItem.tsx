@@ -1,10 +1,16 @@
 import { View, Text } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
-import { Transaction } from "@/types";
+import { Transaction, StakingProtocol } from "@/types";
 
 interface TransactionItemProps {
   transaction: Transaction;
 }
+
+// Protocol display configuration
+const PROTOCOL_CONFIG: Record<StakingProtocol, { name: string; color: string; bgColor: string }> = {
+  kamino: { name: "Kamino", color: "#7C3AED", bgColor: "bg-purple-100" },
+  save: { name: "Save", color: "#059669", bgColor: "bg-emerald-100" },
+};
 
 function formatDate(date: Date): string {
   const now = new Date();
@@ -36,29 +42,69 @@ function getStatusColor(status: Transaction["status"]): string {
   }
 }
 
+function getTransactionLabel(transaction: Transaction): string {
+  const { type, protocol, symbol } = transaction;
+
+  if (protocol) {
+    const protocolName = PROTOCOL_CONFIG[protocol].name;
+    return type === "receive"
+      ? `Withdrew from ${protocolName}`
+      : `Deposited to ${protocolName}`;
+  }
+
+  return type === "receive" ? `Received ${symbol}` : `Sent ${symbol}`;
+}
+
+function getIconConfig(transaction: Transaction): {
+  iconName: "arrow-down" | "arrow-up" | "university";
+  color: string;
+  bgColor: string;
+} {
+  const { type, protocol } = transaction;
+
+  if (protocol) {
+    const config = PROTOCOL_CONFIG[protocol];
+    return {
+      iconName: "university",
+      color: config.color,
+      bgColor: config.bgColor
+    };
+  }
+
+  return type === "receive"
+    ? { iconName: "arrow-down", color: "#22c55e", bgColor: "bg-green-100" }
+    : { iconName: "arrow-up", color: "#ef4444", bgColor: "bg-red-100" };
+}
+
+function shortenAddress(address: string): string {
+  if (address.length <= 12) return address;
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
 export function TransactionItem({ transaction }: TransactionItemProps) {
   const isReceive = transaction.type === "receive";
+  const iconConfig = getIconConfig(transaction);
+  const label = getTransactionLabel(transaction);
 
   return (
     <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
       <View
-        className={`w-10 h-10 rounded-full items-center justify-center ${
-          isReceive ? "bg-green-100" : "bg-red-100"
-        }`}
+        className={`w-10 h-10 rounded-full items-center justify-center ${iconConfig.bgColor}`}
       >
         <FontAwesome
-          name={isReceive ? "arrow-down" : "arrow-up"}
+          name={iconConfig.iconName}
           size={16}
-          color={isReceive ? "#22c55e" : "#ef4444"}
+          color={iconConfig.color}
         />
       </View>
 
       <View className="flex-1 ml-3">
-        <Text className="text-gray-900 font-medium">
-          {isReceive ? "Received" : "Sent"} {transaction.symbol}
-        </Text>
+        <Text className="text-gray-900 font-medium">{label}</Text>
         <Text className="text-gray-500 text-sm">
-          {isReceive ? "From" : "To"} {transaction.counterparty}
+          {transaction.protocol
+            ? shortenAddress(transaction.counterparty)
+            : `${isReceive ? "From" : "To"} ${transaction.counterparty}`
+          }
         </Text>
       </View>
 

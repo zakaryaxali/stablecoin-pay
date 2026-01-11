@@ -20,6 +20,7 @@ interface ApiTransaction {
   status: "confirmed" | "pending" | "failed";
   block_time: string;
   created_at: string;
+  protocol: "kamino" | "save" | null;
 }
 
 interface ApiTransactionsResponse {
@@ -54,6 +55,7 @@ function mapTransaction(tx: ApiTransaction): Transaction {
     status: tx.status as TransactionStatus,
     counterparty: tx.counterparty,
     signature: tx.signature,
+    protocol: tx.protocol ?? undefined,
   };
 }
 
