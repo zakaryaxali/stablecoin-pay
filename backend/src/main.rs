@@ -1,11 +1,3 @@
-mod api;
-mod config;
-mod db;
-mod domain;
-mod error;
-mod repository;
-mod services;
-
 use std::sync::Arc;
 
 use axum::Router;
@@ -15,23 +7,15 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::Config;
-use crate::db::Database;
-use crate::services::apy::ApyService;
-use crate::services::deposit::DepositService;
-use crate::services::solana::SolanaClient;
-use crate::services::sync::SyncService;
-use crate::services::webhook::WebhookService;
-
-pub struct AppState {
-    pub db: Database,
-    pub solana: Arc<SolanaClient>,
-    pub webhook: Arc<WebhookService>,
-    pub sync: Arc<SyncService>,
-    pub apy: Arc<ApyService>,
-    pub deposit: Arc<DepositService>,
-    pub config: Config,
-}
+use stablecoin_pay::api;
+use stablecoin_pay::config::Config;
+use stablecoin_pay::db::Database;
+use stablecoin_pay::services::apy::ApyService;
+use stablecoin_pay::services::deposit::DepositService;
+use stablecoin_pay::services::solana::SolanaClient;
+use stablecoin_pay::services::sync::SyncService;
+use stablecoin_pay::services::webhook::WebhookService;
+use stablecoin_pay::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

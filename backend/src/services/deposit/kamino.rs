@@ -17,7 +17,10 @@ use super::constants::{
     USDC_DECIMAL_MULTIPLIER, USDC_RESERVE,
 };
 use super::types::{BuildDepositResponse, KaminoReserveData};
-use super::{anchor_discriminator, build_create_ata_idempotent_instruction, get_associated_token_address, DepositService};
+use super::{
+    anchor_discriminator, build_create_ata_idempotent_instruction, get_associated_token_address,
+    DepositService,
+};
 use crate::error::AppError;
 
 impl DepositService {
@@ -187,6 +190,7 @@ impl DepositService {
     }
 
     /// Build the deposit_reserve_liquidity instruction
+    #[allow(clippy::too_many_arguments)]
     fn build_kamino_deposit_instruction(
         &self,
         owner: &Pubkey,
@@ -228,6 +232,7 @@ impl DepositService {
     }
 
     /// Build the redeem_reserve_collateral instruction (withdraw/redeem)
+    #[allow(clippy::too_many_arguments)]
     fn build_kamino_withdraw_instruction(
         &self,
         owner: &Pubkey,

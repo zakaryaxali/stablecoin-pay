@@ -17,7 +17,9 @@ use super::constants::{
     SAVE_WITHDRAW_INSTRUCTION_CODE, TOKEN_PROGRAM, USDC_DECIMAL_MULTIPLIER,
 };
 use super::types::{BuildDepositResponse, SaveReserveData};
-use super::{build_create_ata_idempotent_instruction, get_associated_token_address, DepositService};
+use super::{
+    build_create_ata_idempotent_instruction, get_associated_token_address, DepositService,
+};
 use crate::error::AppError;
 
 impl DepositService {
@@ -184,6 +186,7 @@ impl DepositService {
     }
 
     /// Build the Save deposit_reserve_liquidity instruction
+    #[allow(clippy::too_many_arguments)]
     fn build_save_deposit_instruction(
         &self,
         owner: &Pubkey,
@@ -222,6 +225,7 @@ impl DepositService {
     }
 
     /// Build the Save redeem_reserve_collateral instruction (withdraw)
+    #[allow(clippy::too_many_arguments)]
     fn build_save_withdraw_instruction(
         &self,
         owner: &Pubkey,

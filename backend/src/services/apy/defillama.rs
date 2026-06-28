@@ -10,6 +10,7 @@ const DEFILLAMA_YIELDS_URL: &str = "https://yields.llama.fi/pools";
 
 #[derive(Debug, Deserialize)]
 pub struct DefiLlamaResponse {
+    #[allow(dead_code)] // deserialized from the API but not read
     pub status: String,
     pub data: Vec<DefiLlamaPool>,
 }

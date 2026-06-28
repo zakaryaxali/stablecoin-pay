@@ -161,7 +161,7 @@ impl WebhookService {
                     .await?;
 
                     // If we've exhausted retries, mark as failed
-                    if attempt_num >= MAX_ATTEMPTS as i32 {
+                    if attempt_num >= MAX_ATTEMPTS {
                         WebhookEventRepository::mark_failed(&self.pool, event_id, &error_msg)
                             .await?;
                         error!(

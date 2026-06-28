@@ -8,6 +8,7 @@ use crate::error::AppError;
 pub struct TransactionRepository;
 
 impl TransactionRepository {
+    #[allow(clippy::too_many_arguments)]
     pub async fn create(
         pool: &PgPool,
         signature: &str,

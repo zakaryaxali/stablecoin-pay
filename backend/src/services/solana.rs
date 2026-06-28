@@ -1,7 +1,7 @@
 use chrono::{DateTime, TimeZone, Utc};
 use reqwest::Client;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
@@ -132,6 +132,7 @@ struct TokenBalanceMeta {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)] // some fields are deserialized for completeness but not read
 struct UiTokenAmount {
     ui_amount: Option<f64>,
     amount: String,
@@ -408,8 +409,7 @@ impl SolanaClient {
 
         let block_time = result
             .block_time
-            .map(|ts| Utc.timestamp_opt(ts, 0).single())
-            .flatten()
+            .and_then(|ts| Utc.timestamp_opt(ts, 0).single())
             .unwrap_or_else(Utc::now);
 
         // Get token balance metadata
@@ -479,8 +479,7 @@ impl SolanaClient {
         let protocol = result
             .transaction
             .as_ref()
-            .map(|tx| detect_staking_protocol(&tx.message.account_keys))
-            .flatten();
+            .and_then(|tx| detect_staking_protocol(&tx.message.account_keys));
 
         Ok(Some(ParsedTransaction {
             signature: signature.to_string(),

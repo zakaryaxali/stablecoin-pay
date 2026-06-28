@@ -8,6 +8,7 @@ use crate::error::AppError;
 pub struct ApyRateRepository;
 
 impl ApyRateRepository {
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert(
         pool: &PgPool,
         platform: &str,
