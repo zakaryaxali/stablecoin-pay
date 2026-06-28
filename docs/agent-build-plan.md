@@ -115,7 +115,7 @@ Every phase must end in an **objective pass/fail gate** the loop can check befor
 
 ## Build order (checklist — each phase builds on a *verified* prior one)
 
-- [ ] **Phase 1 — Scaffold + signer.** `src/lib.rs` refactor (+ `AppState`, slim `main.rs`, `default-run`). `agent/` module (`mod.rs`, `signer.rs`, `types.rs`), `bin/agent.rs` with `--once` stub. Add Cargo deps + agent env vars. *Gate:* standard + unit test that loads a test keypair and that the mainnet guard rejects a mainnet RPC.
+- [x] **Phase 1 — Scaffold + signer.** `src/lib.rs` refactor (+ `AppState`, slim `main.rs`, `default-run`). `agent/` module (`mod.rs`, `signer.rs`, `types.rs`), `bin/agent.rs` with `--once` stub. Add Cargo deps + agent env vars. *Gate:* standard + unit test that loads a test keypair and that the mainnet guard rejects a mainnet RPC.
 - [ ] **Phase 2 — Executor.** SPL `transfer_checked` + ATA create + sign + send + confirm (shared lib). *Gate:* standard + devnet integration test (`#[ignore]` by default) that sends one real transfer and asserts the recipient balance increased.
 - [ ] **Phase 3 — Observe loop.** `agent_cursor` table + repo; `context.rs` detects new inbound; `mod.rs` `AgentService`/`run_once`; no actions yet (log context). *Gate:* standard + `agent --once` logs the built context for a known inbound tx and advances the cursor.
 - [ ] **Phase 4 — Claude decision.** `claude.rs` tool-use, parse `Decision`, persist context+reasoning to `agent_decisions`. Single-shot. *Gate:* standard + test that a recorded context yields a well-formed `Decision` (mock or live); reasoning persisted.
@@ -140,4 +140,10 @@ Every phase must end in an **objective pass/fail gate** the loop can check befor
 
 > Update this as you go so the next session/machine knows where things stand.
 
-- (nothing implemented yet — Phase 1 not started)
+- **Phase 1 — Scaffold + signer (done).**
+  - Crate refactor: added `src/lib.rs` (crate `stablecoin_pay`) exposing `pub mod {agent, api, config, db, domain, error, repository, services}` + `AppState` at the crate root; slimmed `src/main.rs` to `use stablecoin_pay::*`; set `default-run = "stablecoin-pay"` so `cargo run` starts the API and `cargo run --bin agent` runs the loop.
+  - `agent/` module: `mod.rs`, `signer.rs` (cluster safety guard + base58/file keypair loader, secret never logged), `types.rs` (`Decision`/`AgentAction`/`Payout`/`SettlementInstruction` data model). `src/bin/agent.rs` with a `--once` flag that runs one (stub) iteration and exits non-zero on failure.
+  - Cargo deps pinned for solana-sdk v2 compatibility: `spl-token = "7"`, `spl-associated-token-account = "6"`, `bs58 = "0.5"` (single `solana-program` v2.3.0 in the tree; verified no v3 conflict). Agent env vars added to `Config::from_env` + `.env.example` (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=claude-sonnet-4-6`, `AGENT_KEYPAIR`, `FAUCET_KEYPAIR`, `TREASURY_ADDRESS`, `MAX_PAYOUT_USDC`, `DAILY_LIMIT_USDC`, `AGENT_LOOP_INTERVAL_SECS`, `AGENT_ALLOW_MAINNET`), plus the devnet `USDC_MINT` note.
+  - Gate: `cargo fmt --check`, `cargo check`, `cargo test` (6 signer unit tests incl. base58 keypair load + mainnet-guard rejection), and `cargo clippy --all-targets -- -D warnings` all green. Smoke test: `agent --once` exits 0 on a devnet RPC and non-zero on a mainnet RPC.
+  - Note: `cargo clippy -- -D warnings` was already red on `HEAD` (14 pre-existing lints, none from Phase 1). Per review decision, fixed only with low-risk changes — auto-fixable lints applied, plus `#[allow(dead_code)]` on two serde-only structs and `#[allow(clippy::too_many_arguments)]` on six pre-existing builder/repo fns. No behavior changes; the deeper arg-bundling refactor was deferred.
+  - Infra used this session: `docker compose up -d` (Postgres up; existing migrations applied). The existing repos use the runtime `sqlx::query(...)` builder, not compile-time `query!` macros, so a live DB is not actually required for `cargo check`/`cargo test`.

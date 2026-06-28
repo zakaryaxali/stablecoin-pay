@@ -4,6 +4,7 @@
 //! agent (`src/bin/agent.rs`) — depend on this crate so they can share modules,
 //! `AppState`, config, errors, and the Solana client.
 
+pub mod agent;
 pub mod api;
 pub mod config;
 pub mod db;

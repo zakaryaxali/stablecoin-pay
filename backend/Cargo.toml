@@ -2,6 +2,7 @@
 name = "stablecoin-pay"
 version = "0.1.0"
 edition = "2021"
+default-run = "stablecoin-pay"
 
 [dependencies]
 # Web framework
@@ -48,3 +49,8 @@ hex = "0.4"
 
 # UUID
 uuid = { version = "1", features = ["v4", "serde"] }
+
+# SPL token (pinned to versions compatible with solana-sdk v2 — solana-program 2.x)
+spl-token = "7"
+spl-associated-token-account = "6"
+bs58 = "0.5"
